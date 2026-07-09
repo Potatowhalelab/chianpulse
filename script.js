@@ -11,6 +11,30 @@ const feed = document.querySelector("#eventFeed");
 let currentFilter = "all";
 let paused = false;
 
+const insightDetails = {
+  anomaly: {
+    severity: "high",
+    title: "异常行为监控路径",
+    body: "系统会把混币器交互、闪电贷闭环、合约 owner 变更、可疑授权和短时间多跳转账合并成一条风险路径，优先展示资金起点、关键中继地址和最终落点。",
+    address: "路径样例: attacker -> pool -> bridge -> CEX",
+    value: "37 active"
+  },
+  whale: {
+    severity: "mid",
+    title: "大户动作详情",
+    body: "大户模块不是只看单笔金额，而是连续识别建仓、归集、拆单、跨链迁移和 CEX 入金。用户点击后可以查看地址标签、交易节奏、资产变化和可能意图。",
+    address: "重点地址: 0x7a91...c4F2",
+    value: "126 signals"
+  },
+  market: {
+    severity: "low",
+    title: "做市商钱包详情",
+    body: "做市商模块跟踪库存偏移、报价撤离、异常补仓和交易所热钱包配合动作。库存变化超过阈值时，会关联同池价格、深度和对手方地址。",
+    address: "监控簇: Wintermute / Jump / Amber",
+    value: "14 clusters"
+  }
+};
+
 function renderEvents() {
   const visible = events.filter(event => currentFilter === "all" || event.severity === currentFilter || event.type === currentFilter);
   feed.innerHTML = visible.map((event, index) => `
@@ -51,6 +75,13 @@ document.querySelector("#pauseBtn").addEventListener("click", event => {
 
 document.querySelector("#refreshBtn").addEventListener("click", renderEvents);
 
+document.querySelectorAll("[data-insight]").forEach(card => {
+  card.addEventListener("click", () => openEventDrawer(insightDetails[card.dataset.insight]));
+  card.addEventListener("keydown", event => {
+    if (event.key === "Enter") openEventDrawer(insightDetails[card.dataset.insight]);
+  });
+});
+
 feed.addEventListener("click", event => {
   const card = event.target.closest(".event-card");
   if (card) openEventDrawer(events[Number(card.dataset.eventIndex)]);
@@ -90,10 +121,17 @@ document.querySelectorAll("[data-view-link]").forEach(link => {
 });
 
 function setView(view) {
+  if (!document.querySelector(`[data-view="${view}"]`)) view = "overview";
   document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.dataset.view === view));
   document.querySelectorAll("[data-view-link]").forEach(link => link.classList.toggle("active", link.dataset.viewLink === view));
   document.querySelector("#eventDrawer").classList.remove("open");
+  if (location.hash.replace("#", "") !== view) {
+    history.replaceState(null, "", `#${view}`);
+  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
+
+window.addEventListener("hashchange", () => setView(location.hash.replace("#", "") || "overview"));
 
 const watchlist = [
   { address: "0x742d...f44e", chain: "Ethereum", score: 78, label: "巨鲸/长期持仓", balance: "$412.8M", last: "12 秒前向 Coinbase 入金 940 ETH" },
@@ -126,6 +164,10 @@ function renderWalletDetail(wallet) {
       <div><i></i><p>与 2 个做市商标签地址发生交互。</p></div>
       <div><i></i><p>过去 24h 活跃度高于 30 日均值 4.8 倍。</p></div>
     </div>
+    <div class="monitor-actions">
+      <button class="primary-button" data-view-target="alerts">为该钱包创建告警</button>
+      <button class="secondary-button" data-view-target="forwarding">设置移动推送</button>
+    </div>
   `;
 }
 
@@ -139,20 +181,30 @@ document.querySelector("#walletForm").addEventListener("submit", event => {
   const input = document.querySelector("#walletInput");
   const chain = document.querySelector("#chainSelect").value;
   const address = input.value.trim() || input.placeholder;
+  const shortAddress = address.length > 14 ? `${address.slice(0, 6)}...${address.slice(-4)}` : address;
   watchlist.unshift({
-    address: address.length > 14 ? `${address.slice(0, 6)}...${address.slice(-4)}` : address,
+    address: shortAddress,
     chain,
-    score: 72,
+    score: scoreAddress(address),
     label: "自定义监控",
     balance: "实时扫描中",
     last: "已建立监听，等待下一笔链上行为"
   });
+  document.querySelector("#queryResult").innerHTML = `
+    <b>${shortAddress} 已加入实时监督</b>
+    <span>${chain} · 监控转账、授权、合约交互、CEX 入金和异常路径。</span>
+  `;
   renderWatchlist(0);
   setView("wallets");
   input.value = "";
 });
 
 renderWatchlist();
+setView(location.hash.replace("#", "") || "overview");
+
+function scoreAddress(address) {
+  return 58 + (Array.from(address).reduce((sum, char) => sum + char.charCodeAt(0), 0) % 34);
+}
 
 const canvas = document.querySelector("#pulseCanvas");
 const ctx = canvas.getContext("2d");

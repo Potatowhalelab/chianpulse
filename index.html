@@ -73,22 +73,22 @@
         </section>
 
         <section class="metrics-grid view active" data-view="overview">
-          <article class="metric-card critical">
+          <article class="metric-card critical" data-insight="anomaly" tabindex="0">
             <span>异常行为</span>
             <strong>37</strong>
             <p>混币器交互、闪电贷攻击、权限变更</p>
           </article>
-          <article class="metric-card whale">
+          <article class="metric-card whale" data-insight="whale" tabindex="0">
             <span>大户动作</span>
             <strong>126</strong>
             <p>建仓、归集、跨链转移、CEX 入金</p>
           </article>
-          <article class="metric-card market">
+          <article class="metric-card market" data-insight="market" tabindex="0">
             <span>做市商钱包</span>
             <strong>14</strong>
             <p>库存偏移、报价撤离、异常补仓</p>
           </article>
-          <article class="metric-card mobile">
+          <article class="metric-card mobile" data-view-target="forwarding" tabindex="0">
             <span>移动端转送</span>
             <strong>9</strong>
             <p>App、Telegram、Webhook、短信通道</p>
@@ -111,6 +111,7 @@
             </select>
             <button class="primary-button" type="submit">开始监控</button>
           </form>
+          <div id="queryResult" class="query-result" aria-live="polite"></div>
         </section>
 
         <section class="workspace view active" data-view="overview">
@@ -168,6 +169,11 @@
           <div class="section-heading">
             <h3>告警规则配置</h3>
             <span>规则命中后可转送到移动端</span>
+          </div>
+          <div class="rule-summary">
+            <article><b>钱包级监控</b><span>绑定查询的钱包地址，跟踪转入、转出、合约交互和 CEX 入金。</span></article>
+            <article><b>行为级监控</b><span>覆盖异常授权、闪电贷路径、做市商库存骤变和大户连续交易。</span></article>
+            <article><b>通知策略</b><span>高危即时推送，关注类合并摘要，降低移动端噪音。</span></article>
           </div>
           <div class="builder-grid">
             <label>事件类型<select><option>大额转账</option><option>CEX 入金</option><option>合约权限变更</option><option>做市商库存异常</option></select></label>
