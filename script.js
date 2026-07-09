@@ -134,30 +134,32 @@ function setView(view) {
 window.addEventListener("hashchange", () => setView(location.hash.replace("#", "") || "overview"));
 
 const watchlist = [
-  { address: "0x742d...f44e", chain: "Ethereum", score: 78, label: "巨鲸/长期持仓", balance: "$412.8M", last: "12 秒前向 Coinbase 入金 940 ETH" },
-  { address: "0x5f3a...9D2b", chain: "Base", score: 88, label: "做市商库存", balance: "$63.4M", last: "库存 30m 下降 27%" },
-  { address: "bc1q...7k9m", chain: "Bitcoin", score: 64, label: "交易所热钱包", balance: "$1.2B", last: "拆分到 3 个新地址" }
+  { address: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e", chain: "Ethereum", score: 78, label: "巨鲸/长期持仓", balance: "$412.8M", last: "12 秒前向 Coinbase 入金 940 ETH" },
+  { address: "0x5f3a000000000000000000000000000000009D2b", chain: "Hyperliquid", score: 88, label: "Hyperliquid 大户候选", balance: "等待实时查询", last: "可查询持仓、保证金与最近成交" },
+  { address: "bc1qexample7k9m0000000000000000000000000000", chain: "Bitcoin", score: 64, label: "交易所热钱包", balance: "$1.2B", last: "拆分到 3 个新地址" }
 ];
 
 function renderWatchlist(selected = 0) {
   document.querySelector("#watchlist").innerHTML = watchlist.map((wallet, index) => `
     <button class="wallet-row ${index === selected ? "active" : ""}" data-wallet-index="${index}">
-      <b>${wallet.address}</b><span>${wallet.chain} · ${wallet.label}</span><strong>${wallet.score}</strong>
+      <b title="${wallet.address}">${formatAddress(wallet.address)}</b><span>${wallet.chain} · ${wallet.label}</span><strong>${wallet.score}</strong>
     </button>
   `).join("");
   renderWalletDetail(watchlist[selected]);
 }
 
 function renderWalletDetail(wallet) {
+  const explorer = wallet.chain === "Hyperliquid" ? `https://app.hyperliquid.xyz/explorer/address/${wallet.address}` : "";
   document.querySelector("#walletDetail").innerHTML = `
     <div class="detail-head">
-      <div><span>${wallet.chain}</span><h3>${wallet.address}</h3></div>
+      <div><span>${wallet.chain}</span><h3 class="full-address">${wallet.address}</h3></div>
       <strong>风险 ${wallet.score}/100</strong>
     </div>
     <div class="detail-grid">
       <div><span>资产规模</span><b>${wallet.balance}</b></div>
       <div><span>最新行为</span><b>${wallet.last}</b></div>
       <div><span>监控状态</span><b>实时监督中</b></div>
+      <div><span>公开身份匹配</span><b>${wallet.publicLabel || "待接入可靠公开标签源"}</b></div>
     </div>
     <div class="timeline">
       <div><i></i><p>检测到交易所入金路径，移动端已推送。</p></div>
@@ -167,8 +169,10 @@ function renderWalletDetail(wallet) {
     <div class="monitor-actions">
       <button class="primary-button" data-view-target="alerts">为该钱包创建告警</button>
       <button class="secondary-button" data-view-target="forwarding">设置移动推送</button>
+      ${explorer ? `<a class="secondary-link" href="${explorer}" target="_blank" rel="noreferrer">打开 Hyperliquid Explorer</a>` : ""}
     </div>
   `;
+  renderHyperliquidPanel(wallet);
 }
 
 document.querySelector("#watchlist").addEventListener("click", event => {
@@ -176,26 +180,29 @@ document.querySelector("#watchlist").addEventListener("click", event => {
   if (row) renderWatchlist(Number(row.dataset.walletIndex));
 });
 
-document.querySelector("#walletForm").addEventListener("submit", event => {
+document.querySelector("#walletForm").addEventListener("submit", async event => {
   event.preventDefault();
   const input = document.querySelector("#walletInput");
   const chain = document.querySelector("#chainSelect").value;
   const address = input.value.trim() || input.placeholder;
-  const shortAddress = address.length > 14 ? `${address.slice(0, 6)}...${address.slice(-4)}` : address;
   watchlist.unshift({
-    address: shortAddress,
+    address,
     chain,
     score: scoreAddress(address),
-    label: "自定义监控",
-    balance: "实时扫描中",
-    last: "已建立监听，等待下一笔链上行为"
+    label: chain === "Hyperliquid" ? "Hyperliquid 实时查询" : "自定义监控",
+    balance: chain === "Hyperliquid" ? "正在查询 Hyperliquid" : "实时扫描中",
+    last: chain === "Hyperliquid" ? "正在拉取持仓与最近成交" : "已建立监听，等待下一笔链上行为",
+    publicLabel: "公开标签候选待确认"
   });
   document.querySelector("#queryResult").innerHTML = `
-    <b>${shortAddress} 已加入实时监督</b>
+    <b>${address} 已加入实时监督</b>
     <span>${chain} · 监控转账、授权、合约交互、CEX 入金和异常路径。</span>
   `;
   renderWatchlist(0);
   setView("wallets");
+  if (chain === "Hyperliquid") {
+    await loadHyperliquidIntel(address, 0);
+  }
   input.value = "";
 });
 
@@ -204,6 +211,70 @@ setView(location.hash.replace("#", "") || "overview");
 
 function scoreAddress(address) {
   return 58 + (Array.from(address).reduce((sum, char) => sum + char.charCodeAt(0), 0) % 34);
+}
+
+function formatAddress(address) {
+  if (address.length <= 22) return address;
+  return `${address.slice(0, 10)}...${address.slice(-8)}`;
+}
+
+function renderHyperliquidPanel(wallet) {
+  const panel = document.querySelector("#hyperliquidPanel");
+  if (wallet.chain !== "Hyperliquid") {
+    panel.innerHTML = "";
+    return;
+  }
+  panel.innerHTML = `
+    <div class="section-heading compact">
+      <h3>Hyperliquid 大户情报</h3>
+      <span>实时接口优先，公开标签需二次确认</span>
+    </div>
+    <div class="hyper-grid">
+      <article><span>账户状态</span><b>${wallet.hlStatus || "等待查询"}</b></article>
+      <article><span>最近动作</span><b>${wallet.hlAction || "等待成交数据"}</b></article>
+      <article><span>公开人物匹配</span><b>${wallet.publicLabel || "未确认"}</b></article>
+    </div>
+    <div class="hyper-fills">${wallet.hlFills || "输入 Hyperliquid 地址后，会展示最近成交方向、币种、价格和规模。"}</div>
+  `;
+}
+
+async function loadHyperliquidIntel(address, walletIndex) {
+  const wallet = watchlist[walletIndex];
+  wallet.hlStatus = "查询中";
+  wallet.hlAction = "查询中";
+  wallet.hlFills = "正在连接 Hyperliquid 公共接口...";
+  renderWalletDetail(wallet);
+  try {
+    const [state, fills] = await Promise.all([
+      hyperliquidInfo({ type: "clearinghouseState", user: address }),
+      hyperliquidInfo({ type: "userFills", user: address })
+    ]);
+    const positions = state?.assetPositions || [];
+    const margin = state?.marginSummary?.accountValue;
+    const recent = Array.isArray(fills) ? fills.slice(0, 5) : [];
+    wallet.balance = margin ? `$${Number(margin).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "无账户价值数据";
+    wallet.last = recent[0] ? `${recent[0].coin || "Unknown"} ${recent[0].side || ""} @ ${recent[0].px || "-"}` : "暂无最近成交";
+    wallet.hlStatus = `${positions.length} 个持仓 · ${wallet.balance}`;
+    wallet.hlAction = wallet.last;
+    wallet.hlFills = recent.length
+      ? recent.map(fill => `<div><b>${fill.coin || "-"}</b><span>${fill.side || "-"} · ${fill.sz || "-"} @ ${fill.px || "-"} · ${fill.time ? new Date(fill.time).toLocaleString() : ""}</span></div>`).join("")
+      : "该地址暂无公开成交记录，或接口未返回 userFills。";
+  } catch (error) {
+    wallet.hlStatus = "接口暂不可达";
+    wallet.hlAction = "请稍后重试或打开 Explorer";
+    wallet.hlFills = "当前浏览器无法连接 Hyperliquid 公共接口。页面保留完整地址和 Explorer 链接，不会伪造交易行为。";
+  }
+  renderWatchlist(walletIndex);
+}
+
+async function hyperliquidInfo(payload) {
+  const response = await fetch("https://api.hyperliquid.xyz/info", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) throw new Error(`Hyperliquid API ${response.status}`);
+  return response.json();
 }
 
 const canvas = document.querySelector("#pulseCanvas");
