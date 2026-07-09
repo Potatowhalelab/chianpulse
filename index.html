@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ChianPulse</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="ChianPulse navigation">
+        <div class="brand">
+          <div class="brand-mark">CP</div>
+          <div>
+            <h1>ChianPulse</h1>
+            <span>On-chain intelligence desk</span>
+          </div>
+        </div>
+
+        <nav class="nav-list">
+          <a class="active" href="#"><span>●</span>实时总览</a>
+          <a href="#"><span>◆</span>异常行为</a>
+          <a href="#"><span>▲</span>大户动作</a>
+          <a href="#"><span>■</span>做市商钱包</a>
+          <a href="#"><span>◐</span>移动转送</a>
+        </nav>
+
+        <div class="node-card">
+          <span class="node-label">数据节点</span>
+          <strong>36 / 36 online</strong>
+          <div class="node-grid" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Live intelligence</p>
+            <h2>实时捕捉链上动态</h2>
+          </div>
+          <div class="top-actions">
+            <button class="icon-button" title="暂停事件流" aria-label="暂停事件流">Ⅱ</button>
+            <button class="icon-button" title="刷新" aria-label="刷新">↻</button>
+            <button class="primary-button">创建告警</button>
+          </div>
+        </header>
+
+        <section class="hero-panel">
+          <div class="chain-map" aria-label="Multi-chain activity visualization">
+            <canvas id="pulseCanvas"></canvas>
+            <div class="map-overlay">
+              <span>ETH</span>
+              <span>SOL</span>
+              <span>BASE</span>
+              <span>BSC</span>
+              <span>ARB</span>
+            </div>
+          </div>
+          <div class="hero-copy">
+            <div class="status-row">
+              <span class="live-dot"></span>
+              <strong>24 条高优先级信号正在跟踪</strong>
+            </div>
+            <p>聚合异常转账、巨鲸建仓/出货、交易所热钱包迁移、做市商库存变化与合约风险事件，并将关键消息推送到移动端。</p>
+            <div class="hero-metrics">
+              <div><strong>$842M</strong><span>近 1h 监测资金</span></div>
+              <div><strong>18</strong><span>异常钱包簇</span></div>
+              <div><strong>3.2s</strong><span>平均入站延迟</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="metrics-grid">
+          <article class="metric-card critical">
+            <span>异常行为</span>
+            <strong>37</strong>
+            <p>混币器交互、闪电贷攻击、权限变更</p>
+          </article>
+          <article class="metric-card whale">
+            <span>大户动作</span>
+            <strong>126</strong>
+            <p>建仓、归集、跨链转移、CEX 入金</p>
+          </article>
+          <article class="metric-card market">
+            <span>做市商钱包</span>
+            <strong>14</strong>
+            <p>库存偏移、报价撤离、异常补仓</p>
+          </article>
+          <article class="metric-card mobile">
+            <span>移动端转送</span>
+            <strong>9</strong>
+            <p>App、Telegram、Webhook、短信通道</p>
+          </article>
+        </section>
+
+        <section class="workspace">
+          <div class="feed-column">
+            <div class="section-heading">
+              <h3>实时消息流</h3>
+              <div class="segmented">
+                <button class="active">全部</button>
+                <button>高危</button>
+                <button>大户</button>
+              </div>
+            </div>
+            <div id="eventFeed" class="event-feed" aria-live="polite"></div>
+          </div>
+
+          <div class="side-column">
+            <section class="panel">
+              <div class="section-heading compact">
+                <h3>移动转送</h3>
+                <span class="pill on">已启用</span>
+              </div>
+              <div class="forward-list">
+                <label><input type="checkbox" checked /> App push</label>
+                <label><input type="checkbox" checked /> Telegram bot</label>
+                <label><input type="checkbox" checked /> Enterprise WeChat</label>
+                <label><input type="checkbox" /> SMS fallback</label>
+              </div>
+              <button class="wide-button">配置接收人</button>
+            </section>
+
+            <section class="panel">
+              <div class="section-heading compact">
+                <h3>告警规则</h3>
+                <span>12 active</span>
+              </div>
+              <div class="rules">
+                <div><b>巨鲸入金 CEX</b><span>金额 ≥ $1M</span></div>
+                <div><b>做市商库存骤降</b><span>30m 下降 ≥ 22%</span></div>
+                <div><b>合约权限变更</b><span>owner / proxy / mint</span></div>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="./script.js"></script>
+  </body>
+</html>
