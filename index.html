@@ -20,6 +20,7 @@
         <nav class="nav-list">
           <a class="active" href="#overview" data-view-link="overview"><span>●</span>实时总览</a>
           <a href="#wallets" data-view-link="wallets"><span>◆</span>钱包监控</a>
+          <a href="#alpha" data-view-link="alpha"><span>✦</span>Alpha 板块</a>
           <a href="#alerts" data-view-link="alerts"><span>▲</span>告警规则</a>
           <a href="#forwarding" data-view-link="forwarding"><span>◐</span>移动转送</a>
         </nav>
@@ -184,6 +185,22 @@
             <label>冷却时间<input value="10 分钟" /></label>
           </div>
           <button class="primary-button">保存规则</button>
+        </section>
+
+        <section class="alpha-view view" data-view="alpha">
+          <div class="section-heading">
+            <div>
+              <h3>币安 Alpha 项目监控</h3>
+              <span>跟踪 Alpha 币种背后的庄家、大户、CEX 转入和流动性动作</span>
+            </div>
+            <button id="refreshAlphaBtn" class="primary-button">刷新信号</button>
+          </div>
+          <div class="alpha-layout">
+            <div>
+              <div id="alphaList" class="alpha-list"></div>
+            </div>
+            <div id="alphaDetail" class="alpha-detail"></div>
+          </div>
         </section>
 
         <section class="forwarding-view view" data-view="forwarding">

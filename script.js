@@ -35,6 +35,48 @@ const insightDetails = {
   }
 };
 
+const alphaProjects = [
+  {
+    symbol: "ASTER",
+    name: "Aster",
+    status: "高关注",
+    risk: 82,
+    bias: "疑似派发",
+    makers: ["0x9B12...A71e", "0x41C8...dE90", "0xB208...64F1"],
+    signals: [
+      "前 20 持仓地址 6h 减仓 4.8%",
+      "2 个庄家候选地址向 CEX 归集",
+      "池子深度下降，价格反弹量能偏弱"
+    ]
+  },
+  {
+    symbol: "PARTI",
+    name: "Particle Network",
+    status: "观察",
+    risk: 61,
+    bias: "震荡吸筹",
+    makers: ["0x21d4...E803", "0xC9c1...70a2"],
+    signals: [
+      "大户分批买入，单笔规模未超过阈值",
+      "CEX 净流入不明显",
+      "做市地址库存稳定"
+    ]
+  },
+  {
+    symbol: "SHELL",
+    name: "MyShell",
+    status: "中风险",
+    risk: 73,
+    bias: "疑似砸盘准备",
+    makers: ["0x77F0...0b19", "0xE381...2F43"],
+    signals: [
+      "解锁相关地址出现测试转账",
+      "链上卖压地址数量增加",
+      "流动性撤出 12%，需盯 CEX 入金"
+    ]
+  }
+];
+
 function renderEvents() {
   const visible = events.filter(event => currentFilter === "all" || event.severity === currentFilter || event.type === currentFilter);
   feed.innerHTML = visible.map((event, index) => `
@@ -74,6 +116,7 @@ document.querySelector("#pauseBtn").addEventListener("click", event => {
 });
 
 document.querySelector("#refreshBtn").addEventListener("click", renderEvents);
+document.querySelector("#refreshAlphaBtn")?.addEventListener("click", () => renderAlpha(Math.floor(Math.random() * alphaProjects.length)));
 
 document.querySelectorAll("[data-insight]").forEach(card => {
   card.addEventListener("click", () => openEventDrawer(insightDetails[card.dataset.insight]));
@@ -208,6 +251,7 @@ document.querySelector("#walletForm").addEventListener("submit", async event => 
 
 renderWatchlist();
 setView(location.hash.replace("#", "") || "overview");
+renderAlpha(0);
 
 function scoreAddress(address) {
   return 58 + (Array.from(address).reduce((sum, char) => sum + char.charCodeAt(0), 0) % 34);
@@ -276,6 +320,49 @@ async function hyperliquidInfo(payload) {
   if (!response.ok) throw new Error(`Hyperliquid API ${response.status}`);
   return response.json();
 }
+
+function renderAlpha(selected = 0) {
+  const list = document.querySelector("#alphaList");
+  const detail = document.querySelector("#alphaDetail");
+  if (!list || !detail) return;
+  list.innerHTML = alphaProjects.map((project, index) => `
+    <button class="alpha-row ${index === selected ? "active" : ""}" data-alpha-index="${index}">
+      <b>${project.symbol}</b>
+      <span>${project.name} · ${project.bias}</span>
+      <strong>${project.risk}</strong>
+    </button>
+  `).join("");
+  const project = alphaProjects[selected];
+  detail.innerHTML = `
+    <div class="detail-head">
+      <div><span>${project.status}</span><h3>${project.symbol} · ${project.name}</h3></div>
+      <strong>风险 ${project.risk}/100</strong>
+    </div>
+    <div class="alpha-verdict ${project.risk >= 80 ? "danger" : project.risk >= 70 ? "warn" : ""}">
+      <b>${project.bias}</b>
+      <span>综合大户减仓、CEX 转入、流动性变化和做市商库存偏移得出。</span>
+    </div>
+    <div class="alpha-columns">
+      <section>
+        <h4>庄家/大户候选</h4>
+        ${project.makers.map(address => `<p class="address-line">${address}</p>`).join("")}
+      </section>
+      <section>
+        <h4>关键动作</h4>
+        ${project.signals.map(signal => `<p>${signal}</p>`).join("")}
+      </section>
+    </div>
+    <div class="monitor-actions">
+      <button class="primary-button" data-view-target="alerts">为 ${project.symbol} 创建预警</button>
+      <button class="secondary-button" data-view-target="forwarding">推送到手机</button>
+    </div>
+  `;
+}
+
+document.querySelector("#alphaList")?.addEventListener("click", event => {
+  const row = event.target.closest(".alpha-row");
+  if (row) renderAlpha(Number(row.dataset.alphaIndex));
+});
 
 const canvas = document.querySelector("#pulseCanvas");
 const ctx = canvas.getContext("2d");
