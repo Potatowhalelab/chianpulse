@@ -18,11 +18,10 @@
         </div>
 
         <nav class="nav-list">
-          <a class="active" href="#"><span>●</span>实时总览</a>
-          <a href="#"><span>◆</span>异常行为</a>
-          <a href="#"><span>▲</span>大户动作</a>
-          <a href="#"><span>■</span>做市商钱包</a>
-          <a href="#"><span>◐</span>移动转送</a>
+          <a class="active" href="#overview" data-view-link="overview"><span>●</span>实时总览</a>
+          <a href="#wallets" data-view-link="wallets"><span>◆</span>钱包监控</a>
+          <a href="#alerts" data-view-link="alerts"><span>▲</span>告警规则</a>
+          <a href="#forwarding" data-view-link="forwarding"><span>◐</span>移动转送</a>
         </nav>
 
         <div class="node-card">
@@ -42,13 +41,13 @@
             <h2>实时捕捉链上动态</h2>
           </div>
           <div class="top-actions">
-            <button class="icon-button" title="暂停事件流" aria-label="暂停事件流">Ⅱ</button>
-            <button class="icon-button" title="刷新" aria-label="刷新">↻</button>
-            <button class="primary-button">创建告警</button>
+            <button id="pauseBtn" class="icon-button" title="暂停事件流" aria-label="暂停事件流">Ⅱ</button>
+            <button id="refreshBtn" class="icon-button" title="刷新" aria-label="刷新">↻</button>
+            <button class="primary-button" data-view-target="alerts">创建告警</button>
           </div>
         </header>
 
-        <section class="hero-panel">
+        <section class="hero-panel view active" data-view="overview">
           <div class="chain-map" aria-label="Multi-chain activity visualization">
             <canvas id="pulseCanvas"></canvas>
             <div class="map-overlay">
@@ -73,7 +72,7 @@
           </div>
         </section>
 
-        <section class="metrics-grid">
+        <section class="metrics-grid view active" data-view="overview">
           <article class="metric-card critical">
             <span>异常行为</span>
             <strong>37</strong>
@@ -96,14 +95,32 @@
           </article>
         </section>
 
-        <section class="workspace">
+        <section class="query-panel view active" data-view="overview">
+          <div>
+            <h3>钱包地址实时监督</h3>
+            <p>输入任意钱包地址，生成行为画像、风险分数、资金流向和后续监控规则。</p>
+          </div>
+          <form id="walletForm" class="wallet-form">
+            <input id="walletInput" type="text" placeholder="0x742d35Cc6634C0532925a3b844Bc454e4438f44e" autocomplete="off" />
+            <select id="chainSelect" aria-label="选择链">
+              <option>Ethereum</option>
+              <option>Base</option>
+              <option>Arbitrum</option>
+              <option>Solana</option>
+              <option>BSC</option>
+            </select>
+            <button class="primary-button" type="submit">开始监控</button>
+          </form>
+        </section>
+
+        <section class="workspace view active" data-view="overview">
           <div class="feed-column">
             <div class="section-heading">
               <h3>实时消息流</h3>
               <div class="segmented">
-                <button class="active">全部</button>
-                <button>高危</button>
-                <button>大户</button>
+                <button class="active" data-filter="all">全部</button>
+                <button data-filter="high">高危</button>
+                <button data-filter="whale">大户</button>
               </div>
             </div>
             <div id="eventFeed" class="event-feed" aria-live="polite"></div>
@@ -121,7 +138,7 @@
                 <label><input type="checkbox" checked /> Enterprise WeChat</label>
                 <label><input type="checkbox" /> SMS fallback</label>
               </div>
-              <button class="wide-button">配置接收人</button>
+              <button class="wide-button" data-view-target="forwarding">配置接收人</button>
             </section>
 
             <section class="panel">
@@ -130,14 +147,56 @@
                 <span>12 active</span>
               </div>
               <div class="rules">
-                <div><b>巨鲸入金 CEX</b><span>金额 ≥ $1M</span></div>
-                <div><b>做市商库存骤降</b><span>30m 下降 ≥ 22%</span></div>
+                <div><b>巨鲸入金 CEX</b><span>金额 >= $1M</span></div>
+                <div><b>做市商库存骤降</b><span>30m 下降 >= 22%</span></div>
                 <div><b>合约权限变更</b><span>owner / proxy / mint</span></div>
               </div>
             </section>
           </div>
         </section>
+
+        <section class="wallet-view view" data-view="wallets">
+          <div class="section-heading">
+            <h3>监控中的钱包</h3>
+            <button class="primary-button" data-view-target="overview">添加钱包</button>
+          </div>
+          <div id="watchlist" class="watchlist"></div>
+          <div id="walletDetail" class="wallet-detail"></div>
+        </section>
+
+        <section class="rules-builder view" data-view="alerts">
+          <div class="section-heading">
+            <h3>告警规则配置</h3>
+            <span>规则命中后可转送到移动端</span>
+          </div>
+          <div class="builder-grid">
+            <label>事件类型<select><option>大额转账</option><option>CEX 入金</option><option>合约权限变更</option><option>做市商库存异常</option></select></label>
+            <label>金额阈值<input value="$1,000,000" /></label>
+            <label>风险等级<select><option>高危及以上</option><option>关注及以上</option><option>全部</option></select></label>
+            <label>冷却时间<input value="10 分钟" /></label>
+          </div>
+          <button class="primary-button">保存规则</button>
+        </section>
+
+        <section class="forwarding-view view" data-view="forwarding">
+          <div class="section-heading">
+            <h3>移动端消息转送</h3>
+            <span>让关键链上行为直接到达手机</span>
+          </div>
+          <div class="device-grid">
+            <article><b>App Push</b><span>高危事件即时推送</span><button>已连接</button></article>
+            <article><b>Telegram</b><span>频道 + 私聊双通道</span><button>配置</button></article>
+            <article><b>Enterprise WeChat</b><span>团队值班群同步</span><button>配置</button></article>
+            <article><b>Webhook</b><span>对接自有风控系统</span><button>生成密钥</button></article>
+          </div>
+        </section>
       </main>
+    </div>
+    <div id="eventDrawer" class="drawer" aria-hidden="true">
+      <div class="drawer-card">
+        <button id="closeDrawer" class="icon-button" aria-label="关闭详情">×</button>
+        <div id="drawerContent"></div>
+      </div>
     </div>
     <script src="./script.js"></script>
   </body>

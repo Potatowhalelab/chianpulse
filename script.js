@@ -1,23 +1,26 @@
 const events = [
-  ["high", "做市商钱包库存异常下降", "Wintermute 标记地址在 12 分钟内转出 18,420 ETH，CEX 入金路径已确认。", "刚刚"],
-  ["mid", "巨鲸开始分批建仓", "0x7a91...c4F2 连续 9 笔买入 LINK，总规模 $6.8M，滑点保持低位。", "18 秒前"],
-  ["high", "合约管理员权限变更", "新部署代理合约触发 owner 转移，并伴随 mint 权限开放调用。", "42 秒前"],
-  ["low", "跨链资金归集", "Base 到 Arbitrum 出现 74 笔稳定币桥接，疑似资金池再平衡。", "1 分钟前"],
-  ["mid", "交易所热钱包大额流出", "Binance 标记钱包向 3 个新地址转出 2,100 BTC，历史相似事件后波动升高。", "2 分钟前"],
-  ["high", "闪电贷攻击模式匹配", "某低流动性池出现价格操纵、借贷、偿还闭环，风险评分 91/100。", "3 分钟前"]
+  { severity: "high", type: "market", title: "做市商钱包库存异常下降", body: "Wintermute 标记地址在 12 分钟内转出 18,420 ETH，CEX 入金路径已确认。", time: "刚刚", address: "0x5f3a...9D2b", value: "$63.4M" },
+  { severity: "mid", type: "whale", title: "巨鲸开始分批建仓", body: "0x7a91...c4F2 连续 9 笔买入 LINK，总规模 $6.8M，滑点保持低位。", time: "18 秒前", address: "0x7a91...c4F2", value: "$6.8M" },
+  { severity: "high", type: "risk", title: "合约管理员权限变更", body: "新部署代理合约触发 owner 转移，并伴随 mint 权限开放调用。", time: "42 秒前", address: "0x8d13...a01E", value: "risk 91" },
+  { severity: "low", type: "flow", title: "跨链资金归集", body: "Base 到 Arbitrum 出现 74 笔稳定币桥接，疑似资金池再平衡。", time: "1 分钟前", address: "0xbA42...11d0", value: "$12.1M" },
+  { severity: "mid", type: "whale", title: "交易所热钱包大额流出", body: "Binance 标记钱包向 3 个新地址转出 2,100 BTC，历史相似事件后波动升高。", time: "2 分钟前", address: "bc1q...7k9m", value: "$132M" },
+  { severity: "high", type: "risk", title: "闪电贷攻击模式匹配", body: "某低流动性池出现价格操纵、借贷、偿还闭环，风险评分 91/100。", time: "3 分钟前", address: "0x91c2...2b77", value: "$2.4M" }
 ];
 
 const feed = document.querySelector("#eventFeed");
+let currentFilter = "all";
+let paused = false;
 
 function renderEvents() {
-  feed.innerHTML = events.map(([severity, title, body, time]) => `
-    <article class="event-card">
-      <span class="severity ${severity}">${severity === "high" ? "高危" : severity === "mid" ? "关注" : "信息"}</span>
+  const visible = events.filter(event => currentFilter === "all" || event.severity === currentFilter || event.type === currentFilter);
+  feed.innerHTML = visible.map((event, index) => `
+    <article class="event-card" data-event-index="${events.indexOf(event)}" tabindex="0">
+      <span class="severity ${event.severity}">${event.severity === "high" ? "高危" : event.severity === "mid" ? "关注" : "信息"}</span>
       <div>
-        <h4>${title}</h4>
-        <p>${body}</p>
+        <h4>${event.title}</h4>
+        <p>${event.body}</p>
       </div>
-      <span class="event-time">${time}</span>
+      <span class="event-time">${event.time}</span>
     </article>
   `).join("");
 }
@@ -25,10 +28,131 @@ function renderEvents() {
 renderEvents();
 
 setInterval(() => {
-  const first = events.shift();
-  events.push(first);
-  renderEvents();
+  if (!paused) {
+    const first = events.shift();
+    events.push(first);
+    renderEvents();
+  }
 }, 4200);
+
+document.querySelectorAll("[data-filter]").forEach(button => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll("[data-filter]").forEach(item => item.classList.remove("active"));
+    button.classList.add("active");
+    currentFilter = button.dataset.filter;
+    renderEvents();
+  });
+});
+
+document.querySelector("#pauseBtn").addEventListener("click", event => {
+  paused = !paused;
+  event.currentTarget.textContent = paused ? "▶" : "Ⅱ";
+});
+
+document.querySelector("#refreshBtn").addEventListener("click", renderEvents);
+
+feed.addEventListener("click", event => {
+  const card = event.target.closest(".event-card");
+  if (card) openEventDrawer(events[Number(card.dataset.eventIndex)]);
+});
+
+function openEventDrawer(event) {
+  document.querySelector("#drawerContent").innerHTML = `
+    <span class="severity ${event.severity}">${event.severity === "high" ? "高危事件" : "链上事件"}</span>
+    <h3>${event.title}</h3>
+    <p>${event.body}</p>
+    <dl>
+      <div><dt>地址</dt><dd>${event.address}</dd></div>
+      <div><dt>规模</dt><dd>${event.value}</dd></div>
+      <div><dt>策略</dt><dd>持续监控 24h，命中同类行为立即移动端推送。</dd></div>
+    </dl>
+    <button class="primary-button" data-view-target="wallets">查看钱包画像</button>
+  `;
+  document.querySelector("#eventDrawer").classList.add("open");
+  document.querySelector("#eventDrawer").setAttribute("aria-hidden", "false");
+}
+
+document.querySelector("#closeDrawer").addEventListener("click", () => {
+  document.querySelector("#eventDrawer").classList.remove("open");
+  document.querySelector("#eventDrawer").setAttribute("aria-hidden", "true");
+});
+
+document.addEventListener("click", event => {
+  const target = event.target.closest("[data-view-target]");
+  if (target) setView(target.dataset.viewTarget);
+});
+
+document.querySelectorAll("[data-view-link]").forEach(link => {
+  link.addEventListener("click", event => {
+    event.preventDefault();
+    setView(link.dataset.viewLink);
+  });
+});
+
+function setView(view) {
+  document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.dataset.view === view));
+  document.querySelectorAll("[data-view-link]").forEach(link => link.classList.toggle("active", link.dataset.viewLink === view));
+  document.querySelector("#eventDrawer").classList.remove("open");
+}
+
+const watchlist = [
+  { address: "0x742d...f44e", chain: "Ethereum", score: 78, label: "巨鲸/长期持仓", balance: "$412.8M", last: "12 秒前向 Coinbase 入金 940 ETH" },
+  { address: "0x5f3a...9D2b", chain: "Base", score: 88, label: "做市商库存", balance: "$63.4M", last: "库存 30m 下降 27%" },
+  { address: "bc1q...7k9m", chain: "Bitcoin", score: 64, label: "交易所热钱包", balance: "$1.2B", last: "拆分到 3 个新地址" }
+];
+
+function renderWatchlist(selected = 0) {
+  document.querySelector("#watchlist").innerHTML = watchlist.map((wallet, index) => `
+    <button class="wallet-row ${index === selected ? "active" : ""}" data-wallet-index="${index}">
+      <b>${wallet.address}</b><span>${wallet.chain} · ${wallet.label}</span><strong>${wallet.score}</strong>
+    </button>
+  `).join("");
+  renderWalletDetail(watchlist[selected]);
+}
+
+function renderWalletDetail(wallet) {
+  document.querySelector("#walletDetail").innerHTML = `
+    <div class="detail-head">
+      <div><span>${wallet.chain}</span><h3>${wallet.address}</h3></div>
+      <strong>风险 ${wallet.score}/100</strong>
+    </div>
+    <div class="detail-grid">
+      <div><span>资产规模</span><b>${wallet.balance}</b></div>
+      <div><span>最新行为</span><b>${wallet.last}</b></div>
+      <div><span>监控状态</span><b>实时监督中</b></div>
+    </div>
+    <div class="timeline">
+      <div><i></i><p>检测到交易所入金路径，移动端已推送。</p></div>
+      <div><i></i><p>与 2 个做市商标签地址发生交互。</p></div>
+      <div><i></i><p>过去 24h 活跃度高于 30 日均值 4.8 倍。</p></div>
+    </div>
+  `;
+}
+
+document.querySelector("#watchlist").addEventListener("click", event => {
+  const row = event.target.closest(".wallet-row");
+  if (row) renderWatchlist(Number(row.dataset.walletIndex));
+});
+
+document.querySelector("#walletForm").addEventListener("submit", event => {
+  event.preventDefault();
+  const input = document.querySelector("#walletInput");
+  const chain = document.querySelector("#chainSelect").value;
+  const address = input.value.trim() || input.placeholder;
+  watchlist.unshift({
+    address: address.length > 14 ? `${address.slice(0, 6)}...${address.slice(-4)}` : address,
+    chain,
+    score: 72,
+    label: "自定义监控",
+    balance: "实时扫描中",
+    last: "已建立监听，等待下一笔链上行为"
+  });
+  renderWatchlist(0);
+  setView("wallets");
+  input.value = "";
+});
+
+renderWatchlist();
 
 const canvas = document.querySelector("#pulseCanvas");
 const ctx = canvas.getContext("2d");
