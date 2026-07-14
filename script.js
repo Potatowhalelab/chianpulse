@@ -79,6 +79,8 @@ const alphaProjects = [
     ]
   }
 ];
+const alphaStorageKey = "chianpulse.alphaProjects.v1";
+loadSavedAlphaProjects();
 
 function renderEvents() {
   const visible = events.filter(event => currentFilter === "all" || event.severity === currentFilter || event.type === currentFilter);
@@ -351,7 +353,7 @@ function renderAlpha(selected = 0) {
   const market = project.market || {};
   detail.innerHTML = `
     <div class="detail-head">
-      <div><span>${project.status} · ${project.binanceSymbol}</span><h3>${project.symbol} · ${project.name}</h3></div>
+      <div><span>${project.status} · ${project.binanceSymbol} · ${project.custom ? "本地保存" : "内置观察"}</span><h3>${project.symbol} · ${project.name}</h3></div>
       <strong>风险 ${project.risk}/100</strong>
     </div>
     <div class="alpha-verdict ${project.risk >= 80 ? "danger" : project.risk >= 70 ? "warn" : ""}">
@@ -409,6 +411,7 @@ document.querySelector("#alphaLibraryForm")?.addEventListener("submit", async ev
   }
 
   alphaProjects.unshift(createAlphaProject(symbol, binanceSymbol));
+  saveAlphaProjects();
   alphaSearchTerm = "";
   document.querySelector("#alphaSearchInput").value = "";
   input.value = "";
@@ -427,6 +430,7 @@ function getVisibleAlphaProjects() {
 
 function createAlphaProject(symbol, binanceSymbol) {
   return {
+    custom: true,
     symbol,
     name: `${symbol} Alpha`,
     binanceSymbol,
@@ -441,6 +445,42 @@ function createAlphaProject(symbol, binanceSymbol) {
       "后续可叠加链上持仓集中度与庄家地址行为"
     ]
   };
+}
+
+function loadSavedAlphaProjects() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(alphaStorageKey) || "[]");
+    if (!Array.isArray(saved)) return;
+    saved.reverse().forEach(project => {
+      if (!isValidAlphaProject(project)) return;
+      const existingIndex = alphaProjects.findIndex(item => item.binanceSymbol === project.binanceSymbol);
+      if (existingIndex >= 0) {
+        alphaProjects[existingIndex] = { ...alphaProjects[existingIndex], ...project, custom: Boolean(project.custom) };
+      } else {
+        alphaProjects.unshift({ ...project, custom: true });
+      }
+    });
+  } catch (error) {
+    localStorage.removeItem(alphaStorageKey);
+  }
+}
+
+function saveAlphaProjects() {
+  try {
+    const saved = alphaProjects.filter(project => project.custom);
+    localStorage.setItem(alphaStorageKey, JSON.stringify(saved));
+  } catch (error) {
+    const status = document.querySelector("#alphaApiStatus");
+    if (status) status.textContent = "浏览器本地存储不可用，新增 Alpha 观察可能无法在刷新后保留。";
+  }
+}
+
+function isValidAlphaProject(project) {
+  return project
+    && typeof project.symbol === "string"
+    && typeof project.binanceSymbol === "string"
+    && Array.isArray(project.makers)
+    && Array.isArray(project.signals);
 }
 
 async function syncAlphaMarketData(selected = 0) {
@@ -468,6 +508,7 @@ async function syncAlphaMarketData(selected = 0) {
     applyAlphaVerdict(project, ticker, depth, trades);
 
     if (status) status.textContent = `已同步 Binance 公开市场 API：${project.binanceSymbol}。Alpha 官方列表接口未确认，当前为观察列表 + 公开行情信号。`;
+    saveAlphaProjects();
     renderAlpha(selected);
   } catch (error) {
     if (status) status.textContent = `Binance 公开市场 API 暂不可达或该交易对未开放：${project.binanceSymbol}。当前展示本地 Alpha 观察模型。`;
