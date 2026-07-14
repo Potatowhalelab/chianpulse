@@ -577,6 +577,34 @@ button, input { font: inherit; }
   line-height: 1.6;
 }
 
+.alpha-search-results {
+  display: grid;
+  gap: 8px;
+}
+
+.alpha-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #121518;
+  padding: 12px;
+}
+
+.alpha-result div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.alpha-result span, .alpha-result small {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 .alpha-list {
   display: grid;
   gap: 10px;
@@ -671,6 +699,61 @@ button, input { font: inherit; }
 
 .market-grid .positive { color: var(--green); }
 .market-grid .negative { color: var(--red); }
+
+.alpha-chart {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #121518;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.chart-head span {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.alpha-chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chart-grid line {
+  stroke: rgba(255,255,255,.08);
+}
+
+.chart-grid text {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.last-price-line {
+  stroke: rgba(232, 184, 74, .75);
+  stroke-dasharray: 4 5;
+}
+
+.chart-empty {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: center;
+  padding: 16px;
+}
 
 .alpha-columns {
   display: grid;
@@ -794,6 +877,9 @@ button, input { font: inherit; }
   .main, .sidebar { padding: 16px; }
   .topbar { align-items: flex-start; flex-direction: column; }
   .hero-panel, .metrics-grid, .side-column, .query-panel, .watchlist, .detail-grid, .builder-grid, .device-grid, .wallet-form, .rule-summary, .hyper-grid, .alpha-columns, .market-grid, .alpha-tools { grid-template-columns: 1fr; }
+  .alpha-result { grid-template-columns: 1fr; }
+  .chart-head { align-items: flex-start; flex-direction: column; }
+  .chart-head span { text-align: left; }
   .hero-metrics { flex-direction: column; align-items: stretch; }
   .event-card { grid-template-columns: 1fr; align-items: flex-start; }
   .event-time { white-space: normal; }

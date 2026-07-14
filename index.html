@@ -193,20 +193,24 @@
               <h3>币安 Alpha 项目监控</h3>
               <span>跟踪 Alpha 币种背后的庄家、大户、CEX 转入和流动性动作</span>
             </div>
-            <button id="refreshAlphaBtn" class="primary-button">刷新信号</button>
+            <div class="top-actions">
+              <button id="syncAlphaBtn" class="secondary-button">同步 Alpha 候选</button>
+              <button id="refreshAlphaBtn" class="primary-button">刷新信号</button>
+            </div>
           </div>
-          <div id="alphaApiStatus" class="api-status">数据源：本地 Alpha 观察列表，点击刷新会尝试同步 Binance 公开市场 API。</div>
+          <div id="alphaApiStatus" class="api-status">数据源：Binance Web3 Market API 待接入服务端签名代理；当前使用 Alpha 候选库、Binance 公开行情与 DEX 合约搜索。</div>
           <form id="alphaLibraryForm" class="alpha-tools">
             <label>
               <span>搜索项目</span>
-              <input id="alphaSearchInput" type="search" placeholder="输入 ASTER / PARTI / SHELL" autocomplete="off" />
+              <input id="alphaSearchInput" type="search" placeholder="项目名 / ASTER / 合约地址" autocomplete="off" />
             </label>
             <label>
               <span>添加观察</span>
-              <input id="alphaAddInput" type="text" placeholder="例如 HYPER 或 HYPERUSDT" autocomplete="off" />
+              <input id="alphaAddInput" type="text" placeholder="项目名 / HYPERUSDT / 合约地址" autocomplete="off" />
             </label>
             <button class="primary-button" type="submit">添加</button>
           </form>
+          <div id="alphaSearchResults" class="alpha-search-results"></div>
           <div class="alpha-layout">
             <div>
               <div id="alphaList" class="alpha-list"></div>
