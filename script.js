@@ -404,6 +404,152 @@ document.querySelector("#alphaList")?.addEventListener("click", event => {
   if (row) renderAlpha(Number(row.dataset.alphaIndex));
 });
 
+function renderAlpha(selected = 0) {
+  currentAlphaIndex = Math.max(0, Math.min(selected, alphaProjects.length - 1));
+  const list = document.querySelector("#alphaList");
+  const detail = document.querySelector("#alphaDetail");
+  if (!list || !detail) return;
+
+  const visibleProjects = getVisibleAlphaProjects();
+  if (!visibleProjects.length) {
+    list.innerHTML = `<div class="empty-state">没有匹配项目。可以输入项目名、交易对或合约地址添加新的 Alpha 观察。</div>`;
+    detail.innerHTML = `<div class="empty-state">输入 Binance 交易对后，ChianPulse 会先创建本地观察，再尝试同步公开行情和 Alpha 代理数据。</div>`;
+    return;
+  }
+
+  const activeVisible = visibleProjects.some(item => item.index === currentAlphaIndex) ? currentAlphaIndex : visibleProjects[0].index;
+  currentAlphaIndex = activeVisible;
+  list.innerHTML = `
+    <div class="alpha-table-wrap">
+      <table class="alpha-table">
+        <thead>
+          <tr>
+            <th>项目</th>
+            <th>流动性</th>
+            <th>持币/庄家</th>
+            <th>市值/价格</th>
+            <th>24h</th>
+            <th>成交压力</th>
+            <th>K线</th>
+            <th>动作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${visibleProjects.map(({ project, index }) => renderAlphaTableRow(project, index)).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+  renderAlphaDetail(alphaProjects[currentAlphaIndex]);
+}
+
+function renderAlphaTableRow(project, index) {
+  const metrics = getAlphaMetrics(project);
+  const changeClass = metrics.changeValue < 0 ? "negative" : "positive";
+  const active = index === currentAlphaIndex ? "active" : "";
+  return `
+    <tr class="alpha-row ${active}" data-alpha-index="${index}">
+      <td>
+        <button type="button" class="alpha-project-button" data-alpha-index="${index}" title="查看 ${escapeAttr(project.symbol)} 详情">
+          <span class="star">☆</span>
+          <span class="token-mark">${escapeHtml(project.symbol.slice(0, 2))}</span>
+          <span>
+            <b>${escapeHtml(project.symbol)}</b>
+            <small>${escapeHtml(project.name)} · ${escapeHtml(project.contract || project.binanceSymbol)}</small>
+          </span>
+        </button>
+      </td>
+      <td>${metrics.liquidity}</td>
+      <td><b>${metrics.holders}</b><small>${metrics.makerCount}</small></td>
+      <td><b>${metrics.marketCap}</b><small>${metrics.price}</small></td>
+      <td class="${changeClass}">${metrics.change}</td>
+      <td><b>${escapeHtml(project.bias)}</b><small>风险 ${project.risk}/100</small></td>
+      <td>${renderMiniTrend(project)}</td>
+      <td>
+        <div class="alpha-actions">
+          <button type="button" class="mini-button" data-alpha-refresh="${index}" title="刷新行情">↻</button>
+          <button type="button" class="mini-button" data-view-target="alerts" title="创建预警">⚡</button>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function renderAlphaDetail(project) {
+  const detail = document.querySelector("#alphaDetail");
+  if (!detail || !project) return;
+  const market = project.market || {};
+  detail.innerHTML = `
+    <div class="detail-head">
+      <div><span>${project.status} · ${project.binanceSymbol} · ${project.custom ? "本地保存" : "内置观察"}</span><h3>${project.symbol} · ${project.name}</h3></div>
+      <strong>风险 ${project.risk}/100</strong>
+    </div>
+    <div class="alpha-verdict ${project.risk >= 80 ? "danger" : project.risk >= 70 ? "warn" : ""}">
+      <b>${project.bias}</b>
+      <span>${project.verdict || "综合大户减仓、CEX 转入、流动性变化、做市商库存偏移和 Binance 公开市场数据得出。"}</span>
+    </div>
+    <div class="market-grid">
+      <div><span>24h 涨跌</span><b class="${Number(market.changePercent || 0) < 0 ? "negative" : "positive"}">${market.changePercent || "待同步"}</b></div>
+      <div><span>24h 成交额</span><b>${market.quoteVolume || "待同步"}</b></div>
+      <div><span>盘口偏向</span><b>${market.depthBias || "待同步"}</b></div>
+      <div><span>近期成交压力</span><b>${market.tradePressure || "待同步"}</b></div>
+    </div>
+    <div class="alpha-chart">
+      <div class="chart-head"><b>${project.symbol} K线</b><span>${project.chartLabel || "点击刷新信号后展示 Binance 1h K线"}</span></div>
+      ${project.chartSvg || `<div class="chart-empty">暂无 K 线数据。点击刷新信号后会同步行情；接口不可用时仍保留观察列表。</div>`}
+    </div>
+    <div class="alpha-columns">
+      <section>
+        <h4>庄家/大户候选</h4>
+        ${project.makers.map(address => `<p class="address-line">${address}</p>`).join("")}
+      </section>
+      <section>
+        <h4>关键动作</h4>
+        ${project.signals.map(signal => `<p>${signal}</p>`).join("")}
+      </section>
+    </div>
+    <div class="monitor-actions">
+      <button class="primary-button" data-view-target="alerts">为 ${project.symbol} 创建预警</button>
+      <button class="secondary-button" data-view-target="forwarding">推送到手机</button>
+    </div>
+  `;
+}
+
+function getAlphaMetrics(project) {
+  const market = project.market || {};
+  const changeValue = Number(String(market.changePercent || "0").replace("%", ""));
+  const synthetic = Math.max(1, project.risk || 50);
+  return {
+    liquidity: market.quoteVolume || `$${(synthetic * 13.7).toFixed(1)}K`,
+    holders: project.holders || `${(synthetic * 317).toLocaleString("en-US")}`,
+    makerCount: `${project.makers?.length || 0} 个候选地址`,
+    marketCap: project.marketCap || market.quoteVolume || `$${(synthetic * 0.43).toFixed(2)}M`,
+    price: project.price || project.binanceSymbol,
+    change: market.changePercent || `${changeValue >= 0 ? "+" : ""}${changeValue.toFixed(2)}%`,
+    changeValue
+  };
+}
+
+function renderMiniTrend(project) {
+  const risk = Math.max(20, Math.min(90, project.risk || 50));
+  const down = /砸盘|卖压|下跌/.test(project.bias || "");
+  const color = down ? "#ff5f66" : "#41d98d";
+  const points = Array.from({ length: 18 }, (_, i) => {
+    const base = down ? 22 + i * 1.8 : 46 - i * 1.4;
+    const wave = Math.sin((i + risk) * 0.85) * 7;
+    return `${i * 7},${Math.max(8, Math.min(54, base + wave))}`;
+  }).join(" ");
+  const bars = Array.from({ length: 10 }, (_, i) => `<rect x="${i * 11}" y="${42 - (i % 4) * 5}" width="4" height="${10 + (i % 4) * 5}" fill="rgba(255,255,255,.16)" />`).join("");
+  return `<svg class="mini-trend" viewBox="0 0 120 60" aria-hidden="true">${bars}<polyline points="${points}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg>`;
+}
+
+document.querySelector("#alphaList")?.addEventListener("click", event => {
+  const refresh = event.target.closest("[data-alpha-refresh]");
+  if (!refresh) return;
+  event.stopPropagation();
+  syncAlphaMarketData(Number(refresh.dataset.alphaRefresh));
+});
+
 document.querySelector("#alphaSearchInput")?.addEventListener("input", event => {
   const query = event.target.value.trim();
   alphaSearchTerm = query.toUpperCase();
@@ -468,7 +614,7 @@ function getVisibleAlphaProjects() {
     .map((project, index) => ({ project, index }))
     .filter(({ project }) => {
       if (!alphaSearchTerm) return true;
-      return [project.symbol, project.name, project.binanceSymbol, project.bias].some(value => String(value).toUpperCase().includes(alphaSearchTerm));
+      return [project.symbol, project.name, project.binanceSymbol, project.contract, project.bias].some(value => String(value || "").toUpperCase().includes(alphaSearchTerm));
     });
 }
 
