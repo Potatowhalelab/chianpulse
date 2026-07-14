@@ -325,20 +325,29 @@ async function hyperliquidInfo(payload) {
 }
 
 let currentAlphaIndex = 0;
+let alphaSearchTerm = "";
 
 function renderAlpha(selected = 0) {
-  currentAlphaIndex = selected;
+  currentAlphaIndex = Math.max(0, Math.min(selected, alphaProjects.length - 1));
   const list = document.querySelector("#alphaList");
   const detail = document.querySelector("#alphaDetail");
   if (!list || !detail) return;
-  list.innerHTML = alphaProjects.map((project, index) => `
-    <button class="alpha-row ${index === selected ? "active" : ""}" data-alpha-index="${index}">
+  const visibleProjects = getVisibleAlphaProjects();
+  if (!visibleProjects.length) {
+    list.innerHTML = `<div class="empty-state">没有匹配项目，可以直接添加新的 Alpha 观察。</div>`;
+    detail.innerHTML = `<div class="empty-state">输入 Binance 交易对后，ChianPulse 会尝试拉取公开市场数据并生成初始风险判断。</div>`;
+    return;
+  }
+  const activeVisible = visibleProjects.some(item => item.index === currentAlphaIndex) ? currentAlphaIndex : visibleProjects[0].index;
+  currentAlphaIndex = activeVisible;
+  list.innerHTML = visibleProjects.map(({ project, index }) => `
+    <button class="alpha-row ${index === currentAlphaIndex ? "active" : ""}" data-alpha-index="${index}">
       <b>${project.symbol}</b>
       <span>${project.name} · ${project.bias}</span>
       <strong>${project.risk}</strong>
     </button>
   `).join("");
-  const project = alphaProjects[selected];
+  const project = alphaProjects[currentAlphaIndex];
   const market = project.market || {};
   detail.innerHTML = `
     <div class="detail-head">
@@ -347,7 +356,7 @@ function renderAlpha(selected = 0) {
     </div>
     <div class="alpha-verdict ${project.risk >= 80 ? "danger" : project.risk >= 70 ? "warn" : ""}">
       <b>${project.bias}</b>
-      <span>综合大户减仓、CEX 转入、流动性变化、做市商库存偏移和 Binance 公开市场数据得出。</span>
+      <span>${project.verdict || "综合大户减仓、CEX 转入、流动性变化、做市商库存偏移和 Binance 公开市场数据得出。"}</span>
     </div>
     <div class="market-grid">
       <div><span>24h 涨跌</span><b class="${Number(market.changePercent || 0) < 0 ? "negative" : "positive"}">${market.changePercent || "待同步"}</b></div>
@@ -377,6 +386,63 @@ document.querySelector("#alphaList")?.addEventListener("click", event => {
   if (row) renderAlpha(Number(row.dataset.alphaIndex));
 });
 
+document.querySelector("#alphaSearchInput")?.addEventListener("input", event => {
+  alphaSearchTerm = event.target.value.trim().toUpperCase();
+  renderAlpha(currentAlphaIndex);
+});
+
+document.querySelector("#alphaLibraryForm")?.addEventListener("submit", async event => {
+  event.preventDefault();
+  const input = document.querySelector("#alphaAddInput");
+  const raw = input.value.trim().toUpperCase();
+  if (!raw) return;
+  const symbol = raw.replace(/USDT$/, "");
+  const binanceSymbol = raw.endsWith("USDT") ? raw : `${raw}USDT`;
+  const existingIndex = alphaProjects.findIndex(project => project.binanceSymbol === binanceSymbol || project.symbol === symbol);
+  if (existingIndex >= 0) {
+    alphaSearchTerm = "";
+    document.querySelector("#alphaSearchInput").value = "";
+    renderAlpha(existingIndex);
+    await syncAlphaMarketData(existingIndex);
+    input.value = "";
+    return;
+  }
+
+  alphaProjects.unshift(createAlphaProject(symbol, binanceSymbol));
+  alphaSearchTerm = "";
+  document.querySelector("#alphaSearchInput").value = "";
+  input.value = "";
+  renderAlpha(0);
+  await syncAlphaMarketData(0);
+});
+
+function getVisibleAlphaProjects() {
+  return alphaProjects
+    .map((project, index) => ({ project, index }))
+    .filter(({ project }) => {
+      if (!alphaSearchTerm) return true;
+      return [project.symbol, project.name, project.binanceSymbol, project.bias].some(value => String(value).toUpperCase().includes(alphaSearchTerm));
+    });
+}
+
+function createAlphaProject(symbol, binanceSymbol) {
+  return {
+    symbol,
+    name: `${symbol} Alpha`,
+    binanceSymbol,
+    status: "新观察",
+    risk: 58,
+    bias: "等待行情确认",
+    verdict: "已加入 Alpha 项目库，等待同步 Binance 公开市场数据后生成初始异常判断。",
+    makers: ["待接入链上持仓标签", "待接入 CEX 入金路径", "待接入做市地址簇"],
+    signals: [
+      "已创建观察对象",
+      "等待公开市场 API 返回价格、成交额和盘口深度",
+      "后续可叠加链上持仓集中度与庄家地址行为"
+    ]
+  };
+}
+
 async function syncAlphaMarketData(selected = 0) {
   const project = alphaProjects[selected] || alphaProjects[0];
   const status = document.querySelector("#alphaApiStatus");
@@ -399,6 +465,7 @@ async function syncAlphaMarketData(selected = 0) {
       depthBias: describeDepthBias(depth),
       tradePressure: describeTradePressure(trades)
     };
+    applyAlphaVerdict(project, ticker, depth, trades);
 
     if (status) status.textContent = `已同步 Binance 公开市场 API：${project.binanceSymbol}。Alpha 官方列表接口未确认，当前为观察列表 + 公开行情信号。`;
     renderAlpha(selected);
@@ -438,6 +505,51 @@ function describeTradePressure(trades) {
   if (sellCount > buyCount * 1.25) return "主动卖出偏多";
   if (buyCount > sellCount * 1.25) return "主动买入偏多";
   return "短线成交均衡";
+}
+
+function applyAlphaVerdict(project, ticker, depth, trades) {
+  const change = Number(ticker.priceChangePercent);
+  const volume = Number(ticker.quoteVolume);
+  const bidValue = sumDepth(depth.bids || []);
+  const askValue = sumDepth(depth.asks || []);
+  const depthImbalance = bidValue + askValue ? (bidValue - askValue) / (bidValue + askValue) : 0;
+  const sellCount = trades.filter(trade => trade.isBuyerMaker).length;
+  const buyCount = trades.length - sellCount;
+  const sellPressure = trades.length ? sellCount / trades.length : 0.5;
+  const highVolume = volume >= 20_000_000;
+
+  if (change <= -8 && sellPressure >= 0.58) {
+    project.bias = "疑似砸盘";
+    project.status = "高风险";
+    project.risk = highVolume ? 88 : 80;
+    project.verdict = "价格快速下跌且主动卖出占优，若同时出现 CEX 入金或链上大户减仓，需要优先推送。";
+  } else if (change >= 10 && buyCount > sellCount * 1.2) {
+    project.bias = "疑似拉盘";
+    project.status = "高波动";
+    project.risk = highVolume ? 76 : 70;
+    project.verdict = "价格强势上行且主动买入偏多，短线可能处在拉盘或情绪加速阶段。";
+  } else if (Math.abs(change) <= 5 && depthImbalance > 0.18 && sellPressure <= 0.48) {
+    project.bias = "疑似吸筹";
+    project.status = "观察";
+    project.risk = 64;
+    project.verdict = "价格波动不大但买盘深度偏强，可能存在低调承接或分批吸筹。";
+  } else if (depthImbalance < -0.2 && sellPressure >= 0.55) {
+    project.bias = "卖压偏重";
+    project.status = "中风险";
+    project.risk = 72;
+    project.verdict = "盘口卖墙较厚且主动卖出偏多，后续需要重点观察是否演变为砸盘。";
+  } else {
+    project.bias = "均衡观察";
+    project.status = "观察";
+    project.risk = highVolume ? 58 : 52;
+    project.verdict = "公开市场数据暂未显示极端方向，继续等待链上大户、CEX 和流动性信号确认。";
+  }
+
+  project.signals = [
+    `24h 涨跌 ${formatSigned(change)}%，成交额 ${formatUsd(volume)}`,
+    `盘口深度：${describeDepthBias(depth)}`,
+    `最近成交：${describeTradePressure(trades)}`
+  ];
 }
 
 function formatSigned(value) {

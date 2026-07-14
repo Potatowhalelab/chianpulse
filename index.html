@@ -196,6 +196,17 @@
             <button id="refreshAlphaBtn" class="primary-button">刷新信号</button>
           </div>
           <div id="alphaApiStatus" class="api-status">数据源：本地 Alpha 观察列表，点击刷新会尝试同步 Binance 公开市场 API。</div>
+          <form id="alphaLibraryForm" class="alpha-tools">
+            <label>
+              <span>搜索项目</span>
+              <input id="alphaSearchInput" type="search" placeholder="输入 ASTER / PARTI / SHELL" autocomplete="off" />
+            </label>
+            <label>
+              <span>添加观察</span>
+              <input id="alphaAddInput" type="text" placeholder="例如 HYPER 或 HYPERUSDT" autocomplete="off" />
+            </label>
+            <button class="primary-button" type="submit">添加</button>
+          </form>
           <div class="alpha-layout">
             <div>
               <div id="alphaList" class="alpha-list"></div>
