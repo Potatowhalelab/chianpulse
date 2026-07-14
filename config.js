@@ -1,0 +1,1 @@
+window.CHIANPULSE_API_BASE = window.CHIANPULSE_API_BASE || "";

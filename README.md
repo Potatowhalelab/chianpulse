@@ -22,15 +22,25 @@ BINANCE_WEB3_SECRET_KEY=your_secret_key
 CHIANPULSE_ALLOWED_ORIGIN=https://potatowhalelab.github.io
 ```
 
-For GitHub Pages plus a separate API host, add this before `script.js` in `index.html` after deploying the API:
+For GitHub Pages plus a separate API host, update `config.js` after deploying the API:
 
-```html
-<script>
-  window.CHIANPULSE_API_BASE = "https://your-chianpulse-api.vercel.app";
-</script>
+```js
+window.CHIANPULSE_API_BASE = "https://your-chianpulse-api.vercel.app";
 ```
 
 Without a deployed proxy or API keys, the Alpha page still falls back to the local candidate library, Binance public spot market data, and DexScreener contract lookup.
+
+## Deploy The Proxy
+
+Recommended path:
+
+1. Open Vercel and import `https://github.com/Potatowhalelab/chianpulse`.
+2. Keep the root directory as the repository root.
+3. Add the three environment variables from `.env.example`.
+4. Deploy.
+5. Copy the deployed domain into `config.js` if GitHub Pages remains the public frontend.
+
+If the whole site is served from Vercel, `config.js` can stay empty because `/api/alpha` is same-origin.
 
 ## Local Checks
 
