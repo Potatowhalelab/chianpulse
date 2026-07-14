@@ -565,7 +565,7 @@ function makeSymbolCandidate(query) {
 }
 
 async function lookupContractCandidate(contract) {
-  const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${contract}`);
+  const response = await fetchWithTimeout(`https://api.dexscreener.com/latest/dex/tokens/${contract}`, {}, 3500);
   if (!response.ok) throw new Error(`DexScreener API ${response.status}`);
   const data = await response.json();
   const pair = (data.pairs || []).find(item => item.baseToken?.address?.toLowerCase() === contract.toLowerCase()) || data.pairs?.[0];
@@ -777,11 +777,21 @@ async function alphaProxyGet(action, params = {}) {
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, value);
   });
-  const response = await fetch(url.toString());
+  const response = await fetchWithTimeout(url.toString(), {}, 3500);
   if (!response.ok) throw new Error(`Alpha proxy ${response.status}`);
   const payload = await response.json();
   if (payload.ok === false) throw new Error(payload.error || "Alpha proxy unavailable");
   return payload.data || payload;
+}
+
+async function fetchWithTimeout(url, options = {}, timeout = 6000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function normalizeAlphaTokens(payload) {
@@ -832,7 +842,7 @@ function extractRows(payload) {
 async function binanceGet(path, params) {
   const url = new URL(`https://api.binance.com${path}`);
   Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url, {}, 6000);
   if (!response.ok) throw new Error(`Binance API ${response.status}`);
   return response.json();
 }
