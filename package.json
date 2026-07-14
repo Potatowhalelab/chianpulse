@@ -1,0 +1,16 @@
+{
+  "name": "chianpulse",
+  "version": "0.2.0",
+  "private": true,
+  "description": "ChianPulse on-chain intelligence dashboard with Binance Web3 Alpha proxy.",
+  "scripts": {
+    "check": "node --check script.js && node --check api/alpha.js",
+    "start": "vercel dev"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "vercel": "^44.7.3"
+  }
+}

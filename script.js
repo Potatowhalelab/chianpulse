@@ -80,6 +80,7 @@ const alphaProjects = [
   }
 ];
 const alphaStorageKey = "chianpulse.alphaProjects.v1";
+const alphaProxyBase = window.CHIANPULSE_API_BASE || (location.hostname === "localhost" || location.hostname === "127.0.0.1" ? "" : "");
 const alphaSeedCatalog = [
   { symbol: "ASTER", name: "Aster", binanceSymbol: "ASTERUSDT" },
   { symbol: "PARTI", name: "Particle Network", binanceSymbol: "PARTIUSDT" },
@@ -478,12 +479,20 @@ async function searchAlphaProjects(query) {
     return;
   }
   const status = document.querySelector("#alphaApiStatus");
-  if (status) status.textContent = "正在搜索 Alpha 项目，本地项目库优先，合约地址会尝试查询公开 DEX 数据。";
+  if (status) status.textContent = "正在搜索 Alpha 项目，优先查询 ChianPulse Alpha 代理；不可用时使用本地项目库和公开 DEX 数据。";
 
   try {
-    const results = isContractAddress(normalized)
-      ? [await lookupContractCandidate(normalized)]
-      : buildNameSearchResults(normalized);
+    let proxyResults = [];
+    try {
+      proxyResults = await searchAlphaViaProxy(normalized);
+    } catch {
+      proxyResults = [];
+    }
+    const results = proxyResults.length
+      ? proxyResults
+      : isContractAddress(normalized)
+        ? [await lookupContractCandidate(normalized)]
+        : buildNameSearchResults(normalized);
     renderAlphaSearchResults(results.filter(Boolean));
   } catch (error) {
     renderAlphaSearchResults([]);
@@ -571,6 +580,18 @@ async function lookupContractCandidate(contract) {
   };
 }
 
+async function searchAlphaViaProxy(query) {
+  const payload = await alphaProxyGet("search", { keyword: query, q: query, query });
+  return normalizeAlphaTokens(payload).map(token => ({
+    symbol: token.symbol,
+    name: token.name,
+    binanceSymbol: token.binanceSymbol,
+    contract: token.contract,
+    chainId: token.chainId,
+    source: "Binance Web3 Market API"
+  }));
+}
+
 function isContractAddress(value) {
   return /^0x[a-f0-9]{40}$/i.test(value) || /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
 }
@@ -579,16 +600,23 @@ async function syncAlphaCatalog() {
   const status = document.querySelector("#alphaApiStatus");
   const button = document.querySelector("#syncAlphaBtn");
   if (button) button.disabled = true;
-  if (status) {
-    status.textContent = "Binance Web3 Market API 文档已识别；正式同步 Alpha 官方列表需要服务端签名代理。当前先同步本地 Alpha 候选库，并用 Binance 公开行情验证交易对。";
+  if (status) status.textContent = "正在通过 ChianPulse Alpha 代理同步 Binance Web3 Market API；代理不可用时会同步本地候选库。";
+
+  let catalog = alphaSeedCatalog;
+  try {
+    const proxyPayload = await alphaProxyGet("hot", { limit: 30 });
+    const proxyCatalog = normalizeAlphaTokens(proxyPayload);
+    if (proxyCatalog.length) catalog = proxyCatalog;
+  } catch (error) {
+    if (status) status.textContent = "Alpha 代理暂不可用或未配置 Key，正在同步本地 Alpha 候选库。";
   }
 
   const existingKeys = new Set(alphaProjects.map(project => `${project.symbol}-${project.binanceSymbol}-${project.contract || ""}`));
-  const additions = alphaSeedCatalog
+  const additions = catalog
     .filter(candidate => !existingKeys.has(`${candidate.symbol}-${candidate.binanceSymbol}-${candidate.contract || ""}`))
     .map(candidate => createAlphaProject(candidate.symbol, candidate.binanceSymbol, {
       ...candidate,
-      source: "Binance Alpha 候选库"
+      source: candidate.source || (catalog === alphaSeedCatalog ? "Binance Alpha 候选库" : "Binance Web3 Market API")
     }));
 
   if (additions.length) {
@@ -603,8 +631,8 @@ async function syncAlphaCatalog() {
     await syncAlphaMarketData(0);
     if (status) {
       status.textContent = additions.length
-        ? `已同步 ${additions.length} 个 Alpha 候选项目。官方 Binance Web3 Market API 需要后端签名代理，当前使用公开行情和合约搜索补齐可用数据。`
-        : "Alpha 候选库已是最新。官方 Binance Web3 Market API 需要后端签名代理，当前使用公开行情和合约搜索补齐可用数据。";
+        ? `已同步 ${additions.length} 个 Alpha 项目。若已配置代理 Key，则数据来自 Binance Web3 Market API；否则来自本地候选库。`
+        : "Alpha 项目库已是最新。若已配置代理 Key，则数据来自 Binance Web3 Market API；否则来自本地候选库。";
     }
   } finally {
     if (button) button.disabled = false;
@@ -618,6 +646,7 @@ function createAlphaProject(symbol, binanceSymbol, candidate = {}) {
     name: candidate.name || `${symbol} Alpha`,
     binanceSymbol,
     contract: candidate.contract || "",
+    chainId: candidate.chainId || "",
     status: "新观察",
     risk: 58,
     bias: "等待行情确认",
@@ -677,6 +706,7 @@ async function syncAlphaMarketData(selected = 0) {
   if (button) button.disabled = true;
 
   try {
+    await enrichAlphaFromProxy(project);
     const [ticker, depth, trades, klines] = await Promise.all([
       binanceGet("/api/v3/ticker/24hr", { symbol: project.binanceSymbol }),
       binanceGet("/api/v3/depth", { symbol: project.binanceSymbol, limit: 20 }),
@@ -690,10 +720,10 @@ async function syncAlphaMarketData(selected = 0) {
       depthBias: describeDepthBias(depth),
       tradePressure: describeTradePressure(trades)
     };
-    project.chartSvg = renderKlineChart(project, klines);
+    project.chartSvg = project.chartSvg || renderKlineChart(project, klines);
     applyAlphaVerdict(project, ticker, depth, trades);
 
-    if (status) status.textContent = `已同步 Binance 公开市场 API：${project.binanceSymbol}。Alpha 官方列表接口未确认，当前为观察列表 + 公开行情信号。`;
+    if (status) status.textContent = `已同步 ${project.binanceSymbol}。已优先尝试 Binance Web3 Alpha 代理，并用公开市场行情补齐盘口信号。`;
     saveAlphaProjects();
     renderAlpha(selected);
   } catch (error) {
@@ -701,6 +731,102 @@ async function syncAlphaMarketData(selected = 0) {
   } finally {
     if (button) button.disabled = false;
   }
+}
+
+async function enrichAlphaFromProxy(project) {
+  if (!project.contract && !project.chainId) return;
+  try {
+    const params = {
+      chainId: project.chainId,
+      tokenAddress: project.contract,
+      contractAddress: project.contract,
+      address: project.contract,
+      interval: "1h",
+      limit: 48
+    };
+    const [candles, holders, topTraders] = await Promise.allSettled([
+      alphaProxyGet("candles", params),
+      alphaProxyGet("holders", params),
+      alphaProxyGet("topTraders", params)
+    ]);
+
+    const candleData = candles.status === "fulfilled" ? normalizeCandles(candles.value) : [];
+    if (candleData.length) project.chartSvg = renderKlineChart(project, candleData);
+
+    const holderRows = holders.status === "fulfilled" ? normalizeAddressRows(holders.value) : [];
+    const traderRows = topTraders.status === "fulfilled" ? normalizeAddressRows(topTraders.value) : [];
+    const candidates = [...holderRows.slice(0, 3), ...traderRows.slice(0, 2)].filter(Boolean);
+    if (candidates.length) {
+      project.makers = candidates.map(row => row.label || row.address || row.owner || row.wallet).filter(Boolean);
+    }
+    if (holderRows.length || traderRows.length) {
+      project.signals = [
+        holderRows.length ? `Top holder 数据已返回 ${holderRows.length} 条，重点观察集中度变化。` : "Top holder 数据暂未返回。",
+        traderRows.length ? `Top trader 数据已返回 ${traderRows.length} 条，重点观察净卖出和净买入。` : "Top trader 数据暂未返回。",
+        "已接入 Binance Web3 Market API 代理，可继续叠加官方 Alpha 项目标签。"
+      ];
+    }
+  } catch {
+    project.proxyStatus = "Alpha 代理暂不可用，已降级到公开行情。";
+  }
+}
+
+async function alphaProxyGet(action, params = {}) {
+  const url = new URL(`${alphaProxyBase}/api/alpha`, location.origin);
+  url.searchParams.set("action", action);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, value);
+  });
+  const response = await fetch(url.toString());
+  if (!response.ok) throw new Error(`Alpha proxy ${response.status}`);
+  const payload = await response.json();
+  if (payload.ok === false) throw new Error(payload.error || "Alpha proxy unavailable");
+  return payload.data || payload;
+}
+
+function normalizeAlphaTokens(payload) {
+  const rows = extractRows(payload);
+  return rows.map(row => {
+    const symbol = String(row.symbol || row.tokenSymbol || row.baseTokenSymbol || row.ticker || "").toUpperCase();
+    if (!symbol) return null;
+    return {
+      symbol,
+      name: row.name || row.tokenName || row.baseTokenName || `${symbol} Alpha`,
+      binanceSymbol: row.binanceSymbol || row.cexSymbol || `${symbol}USDT`,
+      contract: row.contractAddress || row.tokenAddress || row.address || row.ca || "",
+      chainId: row.chainId || row.chain || row.network || "",
+      source: "Binance Web3 Market API"
+    };
+  }).filter(Boolean);
+}
+
+function normalizeCandles(payload) {
+  return extractRows(payload).map(item => Array.isArray(item) ? item : [
+    item.openTime || item.time || item.t,
+    item.open || item.o,
+    item.high || item.h,
+    item.low || item.l,
+    item.close || item.c
+  ]).filter(item => item.length >= 5);
+}
+
+function normalizeAddressRows(payload) {
+  return extractRows(payload).map(row => ({
+    ...row,
+    label: row.label || row.name || row.address || row.wallet || row.owner
+  }));
+}
+
+function extractRows(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+  const direct = payload.data || payload.result || payload.rows || payload.list || payload.items || payload.tokens;
+  if (Array.isArray(direct)) return direct;
+  if (direct && typeof direct === "object") return extractRows(direct);
+  for (const value of Object.values(payload)) {
+    if (Array.isArray(value)) return value;
+  }
+  return [];
 }
 
 async function binanceGet(path, params) {
