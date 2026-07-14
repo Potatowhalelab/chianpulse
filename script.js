@@ -39,6 +39,7 @@ const alphaProjects = [
   {
     symbol: "ASTER",
     name: "Aster",
+    binanceSymbol: "ASTERUSDT",
     status: "高关注",
     risk: 82,
     bias: "疑似派发",
@@ -52,6 +53,7 @@ const alphaProjects = [
   {
     symbol: "PARTI",
     name: "Particle Network",
+    binanceSymbol: "PARTIUSDT",
     status: "观察",
     risk: 61,
     bias: "震荡吸筹",
@@ -65,6 +67,7 @@ const alphaProjects = [
   {
     symbol: "SHELL",
     name: "MyShell",
+    binanceSymbol: "SHELLUSDT",
     status: "中风险",
     risk: 73,
     bias: "疑似砸盘准备",
@@ -116,7 +119,7 @@ document.querySelector("#pauseBtn").addEventListener("click", event => {
 });
 
 document.querySelector("#refreshBtn").addEventListener("click", renderEvents);
-document.querySelector("#refreshAlphaBtn")?.addEventListener("click", () => renderAlpha(Math.floor(Math.random() * alphaProjects.length)));
+document.querySelector("#refreshAlphaBtn")?.addEventListener("click", () => syncAlphaMarketData(currentAlphaIndex));
 
 document.querySelectorAll("[data-insight]").forEach(card => {
   card.addEventListener("click", () => openEventDrawer(insightDetails[card.dataset.insight]));
@@ -321,7 +324,10 @@ async function hyperliquidInfo(payload) {
   return response.json();
 }
 
+let currentAlphaIndex = 0;
+
 function renderAlpha(selected = 0) {
+  currentAlphaIndex = selected;
   const list = document.querySelector("#alphaList");
   const detail = document.querySelector("#alphaDetail");
   if (!list || !detail) return;
@@ -333,14 +339,21 @@ function renderAlpha(selected = 0) {
     </button>
   `).join("");
   const project = alphaProjects[selected];
+  const market = project.market || {};
   detail.innerHTML = `
     <div class="detail-head">
-      <div><span>${project.status}</span><h3>${project.symbol} · ${project.name}</h3></div>
+      <div><span>${project.status} · ${project.binanceSymbol}</span><h3>${project.symbol} · ${project.name}</h3></div>
       <strong>风险 ${project.risk}/100</strong>
     </div>
     <div class="alpha-verdict ${project.risk >= 80 ? "danger" : project.risk >= 70 ? "warn" : ""}">
       <b>${project.bias}</b>
-      <span>综合大户减仓、CEX 转入、流动性变化和做市商库存偏移得出。</span>
+      <span>综合大户减仓、CEX 转入、流动性变化、做市商库存偏移和 Binance 公开市场数据得出。</span>
+    </div>
+    <div class="market-grid">
+      <div><span>24h 涨跌</span><b class="${Number(market.changePercent || 0) < 0 ? "negative" : "positive"}">${market.changePercent || "待同步"}</b></div>
+      <div><span>24h 成交额</span><b>${market.quoteVolume || "待同步"}</b></div>
+      <div><span>盘口偏向</span><b>${market.depthBias || "待同步"}</b></div>
+      <div><span>近期成交压力</span><b>${market.tradePressure || "待同步"}</b></div>
     </div>
     <div class="alpha-columns">
       <section>
@@ -363,6 +376,84 @@ document.querySelector("#alphaList")?.addEventListener("click", event => {
   const row = event.target.closest(".alpha-row");
   if (row) renderAlpha(Number(row.dataset.alphaIndex));
 });
+
+async function syncAlphaMarketData(selected = 0) {
+  const project = alphaProjects[selected] || alphaProjects[0];
+  const status = document.querySelector("#alphaApiStatus");
+  const button = document.querySelector("#refreshAlphaBtn");
+  if (!project) return;
+
+  if (status) status.textContent = `正在同步 Binance 公开市场 API：${project.binanceSymbol}`;
+  if (button) button.disabled = true;
+
+  try {
+    const [ticker, depth, trades] = await Promise.all([
+      binanceGet("/api/v3/ticker/24hr", { symbol: project.binanceSymbol }),
+      binanceGet("/api/v3/depth", { symbol: project.binanceSymbol, limit: 20 }),
+      binanceGet("/api/v3/trades", { symbol: project.binanceSymbol, limit: 30 })
+    ]);
+
+    project.market = {
+      changePercent: `${formatSigned(ticker.priceChangePercent)}%`,
+      quoteVolume: formatUsd(ticker.quoteVolume),
+      depthBias: describeDepthBias(depth),
+      tradePressure: describeTradePressure(trades)
+    };
+
+    if (status) status.textContent = `已同步 Binance 公开市场 API：${project.binanceSymbol}。Alpha 官方列表接口未确认，当前为观察列表 + 公开行情信号。`;
+    renderAlpha(selected);
+  } catch (error) {
+    if (status) status.textContent = `Binance 公开市场 API 暂不可达或该交易对未开放：${project.binanceSymbol}。当前展示本地 Alpha 观察模型。`;
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function binanceGet(path, params) {
+  const url = new URL(`https://api.binance.com${path}`);
+  Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Binance API ${response.status}`);
+  return response.json();
+}
+
+function sumDepth(levels) {
+  return levels.reduce((sum, [price, qty]) => sum + Number(price) * Number(qty), 0);
+}
+
+function describeDepthBias(depth) {
+  const bidValue = sumDepth(depth.bids || []);
+  const askValue = sumDepth(depth.asks || []);
+  if (!bidValue && !askValue) return "深度不足";
+  const imbalance = (bidValue - askValue) / (bidValue + askValue);
+  if (imbalance > 0.18) return "买盘承接偏强";
+  if (imbalance < -0.18) return "卖盘压制偏强";
+  return "买卖盘接近平衡";
+}
+
+function describeTradePressure(trades) {
+  const sellCount = trades.filter(trade => trade.isBuyerMaker).length;
+  const buyCount = trades.length - sellCount;
+  if (!trades.length) return "成交不足";
+  if (sellCount > buyCount * 1.25) return "主动卖出偏多";
+  if (buyCount > sellCount * 1.25) return "主动买入偏多";
+  return "短线成交均衡";
+}
+
+function formatSigned(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "0.00";
+  return `${number > 0 ? "+" : ""}${number.toFixed(2)}`;
+}
+
+function formatUsd(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "待同步";
+  if (number >= 1_000_000_000) return `$${(number / 1_000_000_000).toFixed(2)}B`;
+  if (number >= 1_000_000) return `$${(number / 1_000_000).toFixed(2)}M`;
+  if (number >= 1_000) return `$${(number / 1_000).toFixed(2)}K`;
+  return `$${number.toFixed(0)}`;
+}
 
 const canvas = document.querySelector("#pulseCanvas");
 const ctx = canvas.getContext("2d");
