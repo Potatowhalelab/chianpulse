@@ -24,23 +24,36 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
+  const action = url.searchParams.get("action") || "search";
   const apiKey = process.env.BINANCE_WEB3_API_KEY;
   const secretKey = process.env.BINANCE_WEB3_SECRET_KEY;
+
+  if (action === "status") {
+    sendJson(res, 200, {
+      ok: true,
+      source: "chianpulse-proxy",
+      env: {
+        apiKeyConfigured: Boolean(apiKey),
+        secretKeyConfigured: Boolean(secretKey)
+      }
+    });
+    return;
+  }
+
   if (!apiKey || !secretKey) {
     sendJson(res, 503, {
       ok: false,
-      error: "BINANCE_WEB3_API_KEY 和 BINANCE_WEB3_SECRET_KEY 尚未配置",
+      error: "Missing BINANCE_WEB3_API_KEY or BINANCE_WEB3_SECRET_KEY",
       source: "chianpulse-proxy"
     });
     return;
   }
 
   try {
-    const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
-    const action = url.searchParams.get("action") || "search";
     const route = routes[action];
     if (!route) {
-      sendJson(res, 400, { ok: false, error: `不支持的 Alpha API action: ${action}` });
+      sendJson(res, 400, { ok: false, error: `Unsupported Alpha API action: ${action}` });
       return;
     }
 
@@ -71,13 +84,24 @@ module.exports = async function handler(req, res) {
 
     const text = await upstream.text();
     const payload = parseJson(text);
+
+    if (!upstream.ok) {
+      console.error("Binance Web3 upstream error", {
+        action,
+        status: upstream.status,
+        body: text.slice(0, 500)
+      });
+    }
+
     sendJson(res, upstream.status, {
       ok: upstream.ok,
       action,
       source: "binance-web3-market",
+      upstreamStatus: upstream.status,
       data: payload ?? text
     });
   } catch (error) {
+    console.error("ChianPulse Alpha proxy error", error);
     sendJson(res, 500, {
       ok: false,
       error: error.message || "Alpha proxy request failed",

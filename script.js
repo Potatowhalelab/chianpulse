@@ -932,8 +932,11 @@ async function alphaProxyGet(action, params = {}) {
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, value);
   });
   const response = await fetchWithTimeout(url.toString(), {}, 3500);
-  if (!response.ok) throw new Error(`Alpha proxy ${response.status}`);
-  const payload = await response.json();
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = payload?.error || payload?.data?.message || payload?.data?.msg || payload?.data?.code || response.statusText;
+    throw new Error(`Alpha proxy ${response.status}: ${detail}`);
+  }
   if (payload.ok === false) throw new Error(payload.error || "Alpha proxy unavailable");
   return payload.data || payload;
 }
