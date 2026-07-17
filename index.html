@@ -96,6 +96,20 @@
           </article>
         </section>
 
+        <section class="overview-alpha view active" data-view="overview">
+          <div class="section-heading">
+            <div>
+              <h3>Alpha 市场雷达</h3>
+              <span>Binance Alpha 候选项目、K线预览、资金动作与异常判断</span>
+            </div>
+            <button class="secondary-button" data-view-target="alpha">进入 Alpha 板块</button>
+          </div>
+          <div class="overview-alpha-grid">
+            <div id="overviewAlphaList" class="overview-alpha-list"></div>
+            <div id="overviewAlphaDetail" class="overview-alpha-detail"></div>
+          </div>
+        </section>
+
         <section class="query-panel view active" data-view="overview">
           <div>
             <h3>钱包地址实时监督</h3>
@@ -194,7 +208,6 @@
               <span>跟踪 Alpha 币种背后的庄家、大户、CEX 转入和流动性动作</span>
             </div>
             <div class="top-actions">
-              <a class="secondary-link" href="https://web3.binance.com/build" target="_blank" rel="noopener">Binance Build</a>
               <button id="syncAlphaBtn" class="secondary-button">同步 Alpha 候选</button>
               <button id="refreshAlphaBtn" class="primary-button">刷新信号</button>
             </div>

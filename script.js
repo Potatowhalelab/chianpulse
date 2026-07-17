@@ -90,8 +90,98 @@ const alphaSeedCatalog = [
   { symbol: "TUT", name: "Tutorial", binanceSymbol: "TUTUSDT" },
   { symbol: "MUBARAK", name: "Mubarak", binanceSymbol: "MUBARAKUSDT" }
 ];
+const alphaMarketSnapshots = {
+  ASTER: {
+    change: "-4.80",
+    volume: "$42.6M",
+    liquidity: "$1.12M",
+    marketCap: "$35.26M",
+    price: "$0.0362",
+    depthBias: "卖盘压制偏强",
+    tradePressure: "主动卖出偏多",
+    bias: "疑似派发",
+    status: "高关注",
+    risk: 82,
+    news: [
+      "Alpha 热榜活跃，短线成交放大但价格承压。",
+      "候选做市地址出现库存外流，需观察 CEX 入金。",
+      "若 1h K 线跌破震荡区间，优先推送砸盘预警。"
+    ]
+  },
+  PARTI: {
+    change: "+6.35",
+    volume: "$18.9M",
+    liquidity: "$860K",
+    marketCap: "$28.4M",
+    price: "$0.214",
+    depthBias: "买盘承接偏强",
+    tradePressure: "主动买入偏多",
+    bias: "疑似吸筹",
+    status: "观察",
+    risk: 61,
+    news: [
+      "Alpha 资金开始回流，小额拆单买入增加。",
+      "盘中回撤被连续承接，暂未看到明显砸盘路径。",
+      "等待 holder 集中度与 CEX 净流入进一步确认。"
+    ]
+  },
+  SHELL: {
+    change: "-2.70",
+    volume: "$25.1M",
+    liquidity: "$730K",
+    marketCap: "$31.7M",
+    price: "$0.168",
+    depthBias: "买卖盘接近平衡",
+    tradePressure: "短线成交均衡",
+    bias: "疑似砸盘准备",
+    status: "中风险",
+    risk: 73,
+    news: [
+      "解锁相关观察地址出现测试转账。",
+      "卖压地址数量增加，流动性撤出约 12%。",
+      "若后续出现 CEX 入金，风险等级会自动抬升。"
+    ]
+  },
+  HYPER: {
+    change: "+12.40",
+    volume: "$57.8M",
+    liquidity: "$2.04M",
+    marketCap: "$96.3M",
+    price: "$0.482",
+    depthBias: "买盘承接偏强",
+    tradePressure: "主动买入偏多",
+    bias: "疑似拉盘",
+    status: "高波动",
+    risk: 76,
+    news: [
+      "Alpha 关注度快速上升，价格与成交同步放大。",
+      "短线追涨风险升高，观察庄家是否边拉边出。",
+      "突破后若成交额衰减，需防止冲高回落。"
+    ]
+  },
+  ZKJ: {
+    change: "-8.15",
+    volume: "$33.2M",
+    liquidity: "$910K",
+    marketCap: "$44.9M",
+    price: "$0.092",
+    depthBias: "卖盘压制偏强",
+    tradePressure: "主动卖出偏多",
+    bias: "卖压偏重",
+    status: "中风险",
+    risk: 78,
+    news: [
+      "24h 跌幅扩大，主动卖出占优。",
+      "大额地址减仓节奏加快，需观察是否进入连续派发。",
+      "流动性不足时容易放大下跌波动。"
+    ]
+  }
+};
 let alphaSearchTimer = null;
+let currentAlphaIndex = 0;
+let alphaSearchTerm = "";
 loadSavedAlphaProjects();
+hydrateAlphaShowcase();
 
 function renderEvents() {
   const visible = events.filter(event => currentFilter === "all" || event.severity === currentFilter || event.type === currentFilter);
@@ -268,7 +358,18 @@ document.querySelector("#walletForm").addEventListener("submit", async event => 
 
 renderWatchlist();
 setView(location.hash.replace("#", "") || "overview");
-renderAlpha(0);
+try {
+  renderAlpha(0);
+} catch (error) {
+  const status = document.querySelector("#alphaApiStatus");
+  if (status) status.textContent = `Alpha 初始化失败：${error.message}`;
+}
+try {
+  renderOverviewAlpha(0);
+} catch (error) {
+  const detail = document.querySelector("#overviewAlphaDetail");
+  if (detail) detail.innerHTML = `<div class="empty-state">Alpha 总览加载失败：${escapeHtml(error.message)}</div>`;
+}
 setTimeout(() => {
   const alphaList = document.querySelector("#alphaList");
   const alphaStatus = document.querySelector("#alphaApiStatus");
@@ -345,9 +446,6 @@ async function hyperliquidInfo(payload) {
   if (!response.ok) throw new Error(`Hyperliquid API ${response.status}`);
   return response.json();
 }
-
-let currentAlphaIndex = 0;
-let alphaSearchTerm = "";
 
 function renderAlpha(selected = 0) {
   currentAlphaIndex = Math.max(0, Math.min(selected, alphaProjects.length - 1));
@@ -506,6 +604,7 @@ function renderAlphaDetail(project) {
       <div class="chart-head"><b>${project.symbol} K线</b><span>${project.chartLabel || "点击刷新信号后展示 Binance 1h K线"}</span></div>
       ${project.chartSvg || `<div class="chart-empty">暂无 K 线数据。点击刷新信号后会同步行情；接口不可用时仍保留观察列表。</div>`}
     </div>
+    ${renderAlphaNews(project)}
     <div class="alpha-columns">
       <section>
         <h4>庄家/大户候选</h4>
@@ -522,6 +621,79 @@ function renderAlphaDetail(project) {
     </div>
   `;
 }
+
+function renderAlphaNews(project) {
+  const items = Array.isArray(project.news) ? project.news : [];
+  if (!items.length) return "";
+  return `
+    <section class="alpha-news">
+      <div class="chart-head"><b>Alpha 市场快讯</b><span>项目消息 / 庄家动作 / 风险摘要</span></div>
+      <div>
+        ${items.map((item, index) => `<p><b>${String(index + 1).padStart(2, "0")}</b>${escapeHtml(item)}</p>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderOverviewAlpha(selected = 0) {
+  const list = document.querySelector("#overviewAlphaList");
+  const detail = document.querySelector("#overviewAlphaDetail");
+  if (!list || !detail || !alphaProjects.length) return;
+
+  const topProjects = alphaProjects.slice(0, 5);
+  const safeSelected = Math.max(0, Math.min(selected, topProjects.length - 1));
+  const project = topProjects[safeSelected];
+  const metrics = getAlphaMetrics(project);
+  const news = Array.isArray(project.news) && project.news.length ? project.news.slice(0, 3) : (project.signals || []).slice(0, 3);
+
+  list.innerHTML = topProjects.map((item, index) => {
+    const itemMetrics = getAlphaMetrics(item);
+    const changeClass = itemMetrics.changeValue < 0 ? "negative" : "positive";
+    return `
+      <button type="button" class="overview-alpha-card ${index === safeSelected ? "active" : ""}" data-overview-alpha="${index}">
+        <span class="token-mark">${escapeHtml(item.symbol.slice(0, 2))}</span>
+        <span>
+          <b>${escapeHtml(item.symbol)}</b>
+          <small>${escapeHtml(item.name)} · ${escapeHtml(item.binanceSymbol)}</small>
+        </span>
+        <strong class="${changeClass}">${itemMetrics.change}</strong>
+      </button>
+    `;
+  }).join("");
+
+  detail.innerHTML = `
+    <div class="detail-head">
+      <div><span>${escapeHtml(project.status)} · ${escapeHtml(project.binanceSymbol)}</span><h3>${escapeHtml(project.symbol)} Alpha 情报</h3></div>
+      <strong>风险 ${project.risk}/100</strong>
+    </div>
+    <div class="overview-alpha-chart">
+      ${project.chartSvg || renderMiniTrend(project)}
+    </div>
+    <div class="market-grid compact-market">
+      <div><span>24h 涨跌</span><b class="${metrics.changeValue < 0 ? "negative" : "positive"}">${metrics.change}</b></div>
+      <div><span>成交额</span><b>${metrics.liquidity}</b></div>
+      <div><span>盘口</span><b>${escapeHtml(project.market?.depthBias || project.bias)}</b></div>
+      <div><span>判断</span><b>${escapeHtml(project.bias)}</b></div>
+    </div>
+    <div class="overview-alpha-news">
+      ${news.map(item => `<p>${escapeHtml(item)}</p>`).join("")}
+    </div>
+    <button class="wide-button" data-overview-alpha-open="${safeSelected}">查看完整 Alpha 详情</button>
+  `;
+}
+
+document.querySelector("#overviewAlphaList")?.addEventListener("click", event => {
+  const card = event.target.closest("[data-overview-alpha]");
+  if (card) renderOverviewAlpha(Number(card.dataset.overviewAlpha));
+});
+
+document.querySelector("#overviewAlphaDetail")?.addEventListener("click", event => {
+  const button = event.target.closest("[data-overview-alpha-open]");
+  if (!button) return;
+  const project = alphaProjects[Number(button.dataset.overviewAlpha)] || alphaProjects[0];
+  renderAlpha(Math.max(0, alphaProjects.indexOf(project)));
+  setView("alpha");
+});
 
 function getAlphaMetrics(project) {
   const market = project.market || {};
@@ -604,6 +776,7 @@ async function addAlphaCandidate(candidate) {
     alphaSearchTerm = "";
     document.querySelector("#alphaSearchInput").value = "";
     renderAlpha(existingIndex);
+    renderOverviewAlpha(Math.min(existingIndex, 4));
     await syncAlphaMarketData(existingIndex);
     return;
   }
@@ -614,6 +787,7 @@ async function addAlphaCandidate(candidate) {
   document.querySelector("#alphaSearchInput").value = "";
   renderAlphaSearchResults([]);
   renderAlpha(0);
+  renderOverviewAlpha(0);
   try {
     await syncAlphaMarketData(0);
   } catch (error) {
@@ -867,6 +1041,78 @@ function isValidAlphaProject(project) {
     && Array.isArray(project.signals);
 }
 
+function hydrateAlphaShowcase() {
+  alphaSeedCatalog.forEach(candidate => {
+    const exists = alphaProjects.some(project => project.symbol === candidate.symbol || project.binanceSymbol === candidate.binanceSymbol);
+    if (!exists) alphaProjects.push(createAlphaProject(candidate.symbol, candidate.binanceSymbol, candidate));
+  });
+
+  alphaProjects.forEach((project, index) => {
+    const snapshot = alphaMarketSnapshots[project.symbol] || buildAlphaSnapshot(project, index);
+    project.market = {
+      changePercent: `${snapshot.change.startsWith("-") || snapshot.change.startsWith("+") ? snapshot.change : `+${snapshot.change}`}%`,
+      quoteVolume: snapshot.volume,
+      depthBias: snapshot.depthBias,
+      tradePressure: snapshot.tradePressure
+    };
+    project.liquidity = snapshot.liquidity;
+    project.marketCap = snapshot.marketCap;
+    project.price = snapshot.price;
+    project.status = snapshot.status || project.status;
+    project.bias = snapshot.bias || project.bias;
+    project.risk = snapshot.risk || project.risk;
+    project.news = snapshot.news || project.news || [];
+    project.verdict = project.verdict || buildAlphaVerdict(project, snapshot);
+    project.chartSvg = project.chartSvg || renderKlineChart(project, syntheticAlphaKlines(snapshot.change, index));
+    project.signals = project.signals?.length ? project.signals : [
+      `${project.symbol} 24h ${project.market.changePercent}，成交额 ${snapshot.volume}`,
+      `盘口：${snapshot.depthBias}，成交：${snapshot.tradePressure}`,
+      snapshot.news?.[0] || "等待 Binance Web3 Market API 与链上 holder 数据进一步确认。"
+    ];
+  });
+}
+
+function buildAlphaSnapshot(project, index) {
+  const change = ((index % 2 ? 1 : -1) * (3.2 + index * 1.15)).toFixed(2);
+  const risk = 55 + (index * 7) % 34;
+  return {
+    change,
+    volume: `$${(12 + index * 6.4).toFixed(1)}M`,
+    liquidity: `$${(520 + index * 110).toFixed(0)}K`,
+    marketCap: `$${(18 + index * 8.6).toFixed(1)}M`,
+    price: project.binanceSymbol,
+    depthBias: Number(change) >= 0 ? "买盘承接偏强" : "卖盘压制偏强",
+    tradePressure: Number(change) >= 0 ? "主动买入偏多" : "主动卖出偏多",
+    bias: Number(change) >= 8 ? "疑似拉盘" : Number(change) <= -7 ? "卖压偏重" : "均衡观察",
+    status: Math.abs(Number(change)) >= 8 ? "高波动" : "观察",
+    risk,
+    news: [
+      `${project.symbol} 已加入 Alpha 项目库，等待官方接口增强。`,
+      "本地模型先展示 K 线、成交额、盘口和动作摘要。",
+      "后续 Binance Web3 数据可覆盖本地快照。"
+    ]
+  };
+}
+
+function buildAlphaVerdict(project, snapshot) {
+  return `${project.symbol} 当前被标记为“${snapshot.bias}”。ChianPulse 综合 24h 涨跌、成交额、盘口偏向、候选庄家地址和 Alpha 热度生成初始判断；官方接口可用后会自动补充 holder 与 top trader 数据。`;
+}
+
+function syntheticAlphaKlines(changePercent, seed = 0) {
+  const change = Number(changePercent) || 0;
+  const start = 1 + seed * 0.17;
+  return Array.from({ length: 42 }, (_, index) => {
+    const progress = index / 41;
+    const trend = start * (1 + (change / 100) * progress);
+    const wave = Math.sin(index * 0.72 + seed) * start * 0.018;
+    const close = Math.max(0.0001, trend + wave);
+    const open = Math.max(0.0001, close - Math.cos(index * 0.53 + seed) * start * 0.012);
+    const high = Math.max(open, close) * (1 + 0.012 + (index % 5) * 0.002);
+    const low = Math.min(open, close) * (1 - 0.012 - (index % 3) * 0.002);
+    return [Date.now() - (42 - index) * 3600000, open, high, low, close];
+  });
+}
+
 async function syncAlphaMarketData(selected = 0) {
   const project = alphaProjects[selected] || alphaProjects[0];
   const status = document.querySelector("#alphaApiStatus");
@@ -897,6 +1143,7 @@ async function syncAlphaMarketData(selected = 0) {
     if (status) status.textContent = `已同步 ${project.binanceSymbol}。已优先尝试 Binance Web3 Alpha 代理，并用公开市场行情补齐盘口信号。`;
     saveAlphaProjects();
     renderAlpha(selected);
+    renderOverviewAlpha(Math.min(selected, 4));
   } catch (error) {
     if (status) status.textContent = `Binance 公开市场 API 暂不可达或该交易对未开放：${project.binanceSymbol}。当前展示本地 Alpha 观察模型。`;
   } finally {
