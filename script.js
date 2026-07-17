@@ -614,7 +614,13 @@ async function addAlphaCandidate(candidate) {
   document.querySelector("#alphaSearchInput").value = "";
   renderAlphaSearchResults([]);
   renderAlpha(0);
-  await syncAlphaMarketData(0);
+  try {
+    await syncAlphaMarketData(0);
+  } catch (error) {
+    if (status) status.textContent = `Alpha library loaded locally. Market sync skipped: ${error.message}`;
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 function getVisibleAlphaProjects() {

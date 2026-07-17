@@ -2,6 +2,7 @@ const crypto = require("crypto");
 
 const BASE_URL = "https://web3.binance.com/build";
 const BUILD_PREFIX = "/build";
+const UPSTREAM_TIMEOUT_MS = 7000;
 
 const routes = {
   chains: { method: "GET", path: "/api/v1/dex/market/supported/chain" },
@@ -70,7 +71,7 @@ module.exports = async function handler(req, res) {
       .update(timestamp + route.method + requestPath + body, "utf8")
       .digest("base64");
 
-    const upstream = await fetch(`${BASE_URL}${fullPath}`, {
+    const upstream = await fetchWithTimeout(`${BASE_URL}${fullPath}`, {
       method: route.method,
       headers: {
         "Content-Type": "application/json",
@@ -80,7 +81,7 @@ module.exports = async function handler(req, res) {
         "X-OC-RECV-WINDOW": "60000"
       },
       body: route.method === "GET" ? undefined : body
-    });
+    }, UPSTREAM_TIMEOUT_MS);
 
     const text = await upstream.text();
     const payload = parseJson(text);
@@ -115,6 +116,21 @@ function encodeQuery(params) {
     .filter(([, value]) => value !== undefined && value !== null && value !== "")
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join("&");
+}
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(`Binance Web3 upstream timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function readJsonBody(req, fallback) {
