@@ -88,7 +88,55 @@ const alphaSeedCatalog = [
   { symbol: "HYPER", name: "Hyperlane", binanceSymbol: "HYPERUSDT" },
   { symbol: "ZKJ", name: "Polyhedra Network", binanceSymbol: "ZKJUSDT" },
   { symbol: "TUT", name: "Tutorial", binanceSymbol: "TUTUSDT" },
-  { symbol: "MUBARAK", name: "Mubarak", binanceSymbol: "MUBARAKUSDT" }
+  { symbol: "MUBARAK", name: "Mubarak", binanceSymbol: "MUBARAKUSDT" },
+  { symbol: "M", name: "MemeCore", binanceSymbol: "MUSDT" },
+  { symbol: "STABLE", name: "Stable", binanceSymbol: "STABLEUSDT" },
+  { symbol: "BEAT", name: "Audiera", binanceSymbol: "BEATUSDT" },
+  { symbol: "VVV", name: "Venice Token", binanceSymbol: "VVVUSDT" },
+  { symbol: "SPX", name: "SPX6900", binanceSymbol: "SPXUSDT" },
+  { symbol: "NFT", name: "AINFT", binanceSymbol: "NFTUSDT" },
+  { symbol: "VELVET", name: "Velvet", binanceSymbol: "VELVETUSDT" },
+  { symbol: "H", name: "Humanity", binanceSymbol: "HUSDT" },
+  { symbol: "PIEVERSE", name: "Pieverse", binanceSymbol: "PIEVERSEUSDT" },
+  { symbol: "EDGE", name: "edgeX", binanceSymbol: "EDGEUSDT" },
+  { symbol: "FARTCOIN", name: "Fartcoin", binanceSymbol: "FARTCOINUSDT" },
+  { symbol: "VSN", name: "Vision", binanceSymbol: "VSNUSDT" },
+  { symbol: "B", name: "BUILDon", binanceSymbol: "BUSDT" },
+  { symbol: "TAG", name: "Tagger", binanceSymbol: "TAGUSDT" },
+  { symbol: "NEX", name: "Nexus", binanceSymbol: "NEXUSDT" },
+  { symbol: "DATA", name: "Data Network", binanceSymbol: "DATAUSDT" },
+  { symbol: "O", name: "o1.exchange", binanceSymbol: "OUSDT" },
+  { symbol: "GRASS", name: "Grass", binanceSymbol: "GRASSUSDT" },
+  { symbol: "SOON", name: "SOON", binanceSymbol: "SOONUSDT" },
+  { symbol: "ATH", name: "Aethir", binanceSymbol: "ATHUSDT" },
+  { symbol: "FLUID", name: "Fluid", binanceSymbol: "FLUIDUSDT" },
+  { symbol: "RAVE", name: "RaveDAO", binanceSymbol: "RAVEUSDT" },
+  { symbol: "UB", name: "Unibase", binanceSymbol: "UBUSDT" },
+  { symbol: "UAI", name: "UnifAI Network", binanceSymbol: "UAIUSDT" },
+  { symbol: "Q", name: "Quack AI", binanceSymbol: "QUSDT" },
+  { symbol: "ARC", name: "AI Rig Complex", binanceSymbol: "ARCUSDT" },
+  { symbol: "BAS", name: "BNB Attestation Service", binanceSymbol: "BASUSDT" },
+  { symbol: "RIVER", name: "River", binanceSymbol: "RIVERUSDT" },
+  { symbol: "SAFE", name: "Safe", binanceSymbol: "SAFEUSDT" },
+  { symbol: "COAI", name: "ChainOpera AI", binanceSymbol: "COAIUSDT" },
+  { symbol: "LAB", name: "LAB", binanceSymbol: "LABUSDT" },
+  { symbol: "BILL", name: "Billions Network", binanceSymbol: "BILLUSDT" },
+  { symbol: "GWEI", name: "ETHGas", binanceSymbol: "GWEIUSDT" },
+  { symbol: "PROS", name: "Pharos", binanceSymbol: "PROSUSDT" },
+  { symbol: "JELLYJELLY", name: "Jelly-My-Jelly", binanceSymbol: "JELLYJELLYUSDT" },
+  { symbol: "MAGMA", name: "Magma Finance", binanceSymbol: "MAGMAUSDT" },
+  { symbol: "APR", name: "aPriori", binanceSymbol: "APRUSDT" },
+  { symbol: "ZETA", name: "ZetaChain", binanceSymbol: "ZETAUSDT" },
+  { symbol: "CYS", name: "Cysic", binanceSymbol: "CYSUSDT" },
+  { symbol: "TOSHI", name: "Toshi", binanceSymbol: "TOSHIUSDT" },
+  { symbol: "BR", name: "Bedrock", binanceSymbol: "BRUSDT" },
+  { symbol: "POPCAT", name: "Popcat", binanceSymbol: "POPCATUSDT" },
+  { symbol: "SKR", name: "Seeker", binanceSymbol: "SKRUSDT" },
+  { symbol: "ICNT", name: "Impossible Cloud Network", binanceSymbol: "ICNTUSDT" },
+  { symbol: "PEAQ", name: "peaq", binanceSymbol: "PEAQUSDT" },
+  { symbol: "B2", name: "BSquared Network", binanceSymbol: "B2USDT" },
+  { symbol: "ZORA", name: "ZORA", binanceSymbol: "ZORAUSDT" },
+  { symbol: "MYX", name: "MYX Finance", binanceSymbol: "MYXUSDT" }
 ];
 const alphaMarketSnapshots = {
   ASTER: {
@@ -224,6 +272,7 @@ document.querySelector("#pauseBtn").addEventListener("click", event => {
 document.querySelector("#refreshBtn").addEventListener("click", renderEvents);
 document.querySelector("#refreshAlphaBtn")?.addEventListener("click", () => syncAlphaMarketData(currentAlphaIndex));
 document.querySelector("#syncAlphaBtn")?.addEventListener("click", syncAlphaCatalog);
+document.querySelector("#saveRuleBtn")?.addEventListener("click", saveCurrentRule);
 
 document.querySelectorAll("[data-insight]").forEach(card => {
   card.addEventListener("click", () => openEventDrawer(insightDetails[card.dataset.insight]));
@@ -258,7 +307,78 @@ document.querySelector("#closeDrawer").addEventListener("click", () => {
   document.querySelector("#eventDrawer").setAttribute("aria-hidden", "true");
 });
 
+function saveCurrentRule() {
+  const fields = [...document.querySelectorAll(".builder-grid label")].map(label => {
+    const name = label.childNodes[0]?.textContent?.trim() || "规则项";
+    const input = label.querySelector("input, select");
+    return `${name}：${input?.value || input?.selectedOptions?.[0]?.textContent || "已设置"}`;
+  });
+  openEventDrawer({
+    severity: "mid",
+    title: "告警规则已保存",
+    body: `ChianPulse 已创建一条新的监控规则。${fields.join("；")}。命中后会同步到移动端通道。`,
+    address: "规则状态：实时监听中",
+    value: "已加入规则队列"
+  });
+}
+
+function createAlphaAction(type, project) {
+  if (!project) return;
+  if (type === "alert") {
+    setView("alerts");
+    openEventDrawer({
+      severity: project.risk >= 75 ? "high" : "mid",
+      title: `${project.symbol} Alpha 预警已生成`,
+      body: `已为 ${project.symbol} 设置 Alpha 监控：当 1h K 线破位、24h 成交额异常放大、CEX 入金或候选庄家地址减仓时触发。`,
+      address: project.contract || project.binanceSymbol,
+      value: `风险 ${project.risk}/100 · ${project.bias}`
+    });
+    return;
+  }
+  setView("forwarding");
+  const status = document.querySelector("#forwardingStatus");
+  if (status) status.textContent = `${project.symbol} 已加入移动端推送队列；高危砸盘、拉盘、吸筹异常会优先推送。`;
+}
+
+function configureChannel(channel, button) {
+  const copy = {
+    app: ["App Push 已连接", "App Push 已保持在线，Alpha 高危事件会直接进入手机通知。"],
+    telegram: ["Telegram 配置已生成", "已生成 Telegram 机器人接入步骤：绑定频道、选择高危/关注级别、保存后即可接收。"],
+    wechat: ["企业微信配置已生成", "已生成企业微信群机器人配置：复制 Webhook 到群机器人后即可同步值班消息。"],
+    webhook: ["Webhook 密钥已生成", `Webhook key: cp_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`]
+  }[channel] || ["通道已更新", "该移动端通道已进入配置流程。"];
+  if (button) button.textContent = channel === "app" ? "已连接" : "已生成";
+  const status = document.querySelector("#forwardingStatus");
+  if (status) status.textContent = copy[1];
+  openEventDrawer({
+    severity: "low",
+    title: copy[0],
+    body: copy[1],
+    address: "移动端转送",
+    value: "配置待确认"
+  });
+}
+
 document.addEventListener("click", event => {
+  const alphaAlert = event.target.closest("[data-alpha-alert]");
+  if (alphaAlert) {
+    event.preventDefault();
+    const project = alphaProjects[Number(alphaAlert.dataset.alphaAlert)] || alphaProjects[currentAlphaIndex] || alphaProjects[0];
+    createAlphaAction("alert", project);
+    return;
+  }
+  const alphaForward = event.target.closest("[data-alpha-forward]");
+  if (alphaForward) {
+    event.preventDefault();
+    const project = alphaProjects[Number(alphaForward.dataset.alphaForward)] || alphaProjects[currentAlphaIndex] || alphaProjects[0];
+    createAlphaAction("forward", project);
+    return;
+  }
+  const channelAction = event.target.closest("[data-channel-action]");
+  if (channelAction) {
+    configureChannel(channelAction.dataset.channelAction, channelAction);
+    return;
+  }
   const target = event.target.closest("[data-view-target]");
   if (target) setView(target.dataset.viewTarget);
 });
@@ -574,7 +694,7 @@ function renderAlphaTableRow(project, index) {
       <td>
         <div class="alpha-actions">
           <button type="button" class="mini-button" data-alpha-refresh="${index}" title="刷新行情">↻</button>
-          <button type="button" class="mini-button" data-view-target="alerts" title="创建预警">⚡</button>
+          <button type="button" class="mini-button" data-alpha-alert="${index}" title="创建预警">⚡</button>
         </div>
       </td>
     </tr>
@@ -616,8 +736,8 @@ function renderAlphaDetail(project) {
       </section>
     </div>
     <div class="monitor-actions">
-      <button class="primary-button" data-view-target="alerts">为 ${project.symbol} 创建预警</button>
-      <button class="secondary-button" data-view-target="forwarding">推送到手机</button>
+      <button class="primary-button" data-alpha-alert="${currentAlphaIndex}">为 ${project.symbol} 创建预警</button>
+      <button class="secondary-button" data-alpha-forward="${currentAlphaIndex}">推送到手机</button>
     </div>
   `;
 }
@@ -936,7 +1056,7 @@ async function syncAlphaCatalog() {
   const refreshButton = document.querySelector("#refreshAlphaBtn");
   if (button) button.disabled = true;
   if (refreshButton) refreshButton.disabled = true;
-  if (status) status.textContent = "正在通过 ChianPulse Alpha 代理同步 Binance Web3 Market API；代理不可用时会同步本地候选库。";
+  if (status) status.textContent = "正在更新 Alpha 项目库：优先同步官方数据，不可用时使用扩展候选库保持可浏览。";
   const syncGuard = setTimeout(() => {
     if (status) status.textContent = "Alpha 本地候选库已加载。Binance Web3 官方接口响应较慢，请稍后再刷新。";
     if (button) button.disabled = false;
@@ -949,7 +1069,7 @@ async function syncAlphaCatalog() {
     const proxyCatalog = normalizeAlphaTokens(proxyPayload);
     if (proxyCatalog.length) catalog = proxyCatalog;
   } catch (error) {
-    if (status) status.textContent = `Alpha proxy returned: ${error.message}. Loading local Alpha candidates.`;
+    if (status) status.textContent = `官方 Alpha 接口暂不可用，已切换到扩展候选库：${error.message}`;
   }
 
   const existingKeys = new Set(alphaProjects.map(project => `${project.symbol}-${project.binanceSymbol}-${project.contract || ""}`));
@@ -972,8 +1092,8 @@ async function syncAlphaCatalog() {
     await syncAlphaMarketData(0);
     if (status) {
       status.textContent = additions.length
-        ? `已同步 ${additions.length} 个 Alpha 项目。若已配置代理 Key，则数据来自 Binance Web3 Market API；否则来自本地候选库。`
-        : "Alpha 项目库已是最新。若已配置代理 Key，则数据来自 Binance Web3 Market API；否则来自本地候选库。";
+        ? `已补充 ${additions.length} 个 Alpha 项目。列表、搜索、K线预览和风险判断已更新。`
+        : "Alpha 项目库已是最新。可以直接搜索项目名、交易对或合约地址添加观察。";
     }
   } catch (error) {
     if (status) status.textContent = `Alpha 本地候选库已加载。行情同步暂不可用：${error.message}`;
@@ -1119,7 +1239,7 @@ async function syncAlphaMarketData(selected = 0) {
   const button = document.querySelector("#refreshAlphaBtn");
   if (!project) return;
 
-  if (status) status.textContent = `正在同步 Binance 公开市场 API：${project.binanceSymbol}`;
+  if (status) status.textContent = `正在更新 ${project.symbol}：行情、K线、盘口和风险判断。`;
   if (button) button.disabled = true;
 
   try {
@@ -1140,7 +1260,7 @@ async function syncAlphaMarketData(selected = 0) {
     project.chartSvg = project.chartSvg || renderKlineChart(project, klines);
     applyAlphaVerdict(project, ticker, depth, trades);
 
-    if (status) status.textContent = `已同步 ${project.binanceSymbol}。已优先尝试 Binance Web3 Alpha 代理，并用公开市场行情补齐盘口信号。`;
+    if (status) status.textContent = `${project.symbol} 已更新：K线、24h 涨跌、成交额、盘口压力和 Alpha 风险摘要已刷新。`;
     saveAlphaProjects();
     renderAlpha(selected);
     renderOverviewAlpha(Math.min(selected, 4));

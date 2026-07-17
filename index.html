@@ -198,7 +198,7 @@
             <label>风险等级<select><option>高危及以上</option><option>关注及以上</option><option>全部</option></select></label>
             <label>冷却时间<input value="10 分钟" /></label>
           </div>
-          <button class="primary-button">保存规则</button>
+          <button id="saveRuleBtn" class="primary-button">保存规则</button>
         </section>
 
         <section class="alpha-view view" data-view="alpha">
@@ -301,11 +301,12 @@
             <span>让关键链上行为直接到达手机</span>
           </div>
           <div class="device-grid">
-            <article><b>App Push</b><span>高危事件即时推送</span><button>已连接</button></article>
-            <article><b>Telegram</b><span>频道 + 私聊双通道</span><button>配置</button></article>
-            <article><b>Enterprise WeChat</b><span>团队值班群同步</span><button>配置</button></article>
-            <article><b>Webhook</b><span>对接自有风控系统</span><button>生成密钥</button></article>
+            <article><b>App Push</b><span>高危事件即时推送</span><button data-channel-action="app">已连接</button></article>
+            <article><b>Telegram</b><span>频道 + 私聊双通道</span><button data-channel-action="telegram">配置</button></article>
+            <article><b>Enterprise WeChat</b><span>团队值班群同步</span><button data-channel-action="wechat">配置</button></article>
+            <article><b>Webhook</b><span>对接自有风控系统</span><button data-channel-action="webhook">生成密钥</button></article>
           </div>
+          <div id="forwardingStatus" class="api-status">移动端通道待选择。点击任意通道可查看下一步配置。</div>
         </section>
       </main>
     </div>
