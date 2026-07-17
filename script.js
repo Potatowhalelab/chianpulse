@@ -762,7 +762,7 @@ async function syncAlphaCatalog() {
     const proxyCatalog = normalizeAlphaTokens(proxyPayload);
     if (proxyCatalog.length) catalog = proxyCatalog;
   } catch (error) {
-    if (status) status.textContent = "Alpha 代理暂不可用或未配置 Key，正在同步本地 Alpha 候选库。";
+    if (status) status.textContent = `Alpha proxy returned: ${error.message}. Loading local Alpha candidates.`;
   }
 
   const existingKeys = new Set(alphaProjects.map(project => `${project.symbol}-${project.binanceSymbol}-${project.contract || ""}`));
