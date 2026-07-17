@@ -269,6 +269,14 @@ document.querySelector("#walletForm").addEventListener("submit", async event => 
 renderWatchlist();
 setView(location.hash.replace("#", "") || "overview");
 renderAlpha(0);
+setTimeout(() => {
+  const alphaList = document.querySelector("#alphaList");
+  const alphaStatus = document.querySelector("#alphaApiStatus");
+  if (alphaList && !alphaList.textContent.trim()) {
+    renderAlpha(0);
+    if (alphaStatus) alphaStatus.textContent = "Alpha 本地候选库已加载；官方接口不可用时仍会显示可搜索、可添加的观察表。";
+  }
+}, 0);
 
 function scoreAddress(address) {
   return 58 + (Array.from(address).reduce((sum, char) => sum + char.charCodeAt(0), 0) % 34);

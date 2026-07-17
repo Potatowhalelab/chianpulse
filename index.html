@@ -213,9 +213,71 @@
           <div id="alphaSearchResults" class="alpha-search-results"></div>
           <div class="alpha-layout">
             <div>
-              <div id="alphaList" class="alpha-list"></div>
+              <div id="alphaList" class="alpha-list">
+                <div class="alpha-table-wrap">
+                  <table class="alpha-table">
+                    <thead>
+                      <tr>
+                        <th>项目</th>
+                        <th>流动性</th>
+                        <th>持币/庄家</th>
+                        <th>市值/价格</th>
+                        <th>24h</th>
+                        <th>成交压力</th>
+                        <th>K线</th>
+                        <th>动作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr class="alpha-row active">
+                        <td><span class="fallback-token"><b>ASTER</b><small>Aster · ASTERUSDT</small></span></td>
+                        <td>$1.12M</td>
+                        <td><b>25.9K</b><small>3 个候选地址</small></td>
+                        <td><b>$35.26M</b><small>待同步</small></td>
+                        <td class="negative">-4.80%</td>
+                        <td><b>疑似派发</b><small>风险 82/100</small></td>
+                        <td><svg class="mini-trend" viewBox="0 0 120 60"><polyline points="0,18 14,20 28,16 42,26 56,31 70,30 84,38 98,44 112,48" fill="none" stroke="#ff5f66" stroke-width="3" stroke-linecap="round" /></svg></td>
+                        <td><span class="pill">观察中</span></td>
+                      </tr>
+                      <tr class="alpha-row">
+                        <td><span class="fallback-token"><b>PARTI</b><small>Particle Network · PARTIUSDT</small></span></td>
+                        <td>$835.7K</td>
+                        <td><b>19.3K</b><small>2 个候选地址</small></td>
+                        <td><b>$26.23M</b><small>待同步</small></td>
+                        <td class="positive">+2.10%</td>
+                        <td><b>震荡吸筹</b><small>风险 61/100</small></td>
+                        <td><svg class="mini-trend" viewBox="0 0 120 60"><polyline points="0,45 14,42 28,39 42,41 56,34 70,31 84,29 98,26 112,23" fill="none" stroke="#41d98d" stroke-width="3" stroke-linecap="round" /></svg></td>
+                        <td><span class="pill">观察中</span></td>
+                      </tr>
+                      <tr class="alpha-row">
+                        <td><span class="fallback-token"><b>SHELL</b><small>MyShell · SHELLUSDT</small></span></td>
+                        <td>$1.00M</td>
+                        <td><b>23.1K</b><small>2 个候选地址</small></td>
+                        <td><b>$31.39M</b><small>待同步</small></td>
+                        <td class="negative">-1.70%</td>
+                        <td><b>疑似砸盘准备</b><small>风险 73/100</small></td>
+                        <td><svg class="mini-trend" viewBox="0 0 120 60"><polyline points="0,24 14,21 28,28 42,26 56,34 70,33 84,39 98,43 112,47" fill="none" stroke="#ff5f66" stroke-width="3" stroke-linecap="round" /></svg></td>
+                        <td><span class="pill">观察中</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-            <div id="alphaDetail" class="alpha-detail"></div>
+            <div id="alphaDetail" class="alpha-detail">
+              <div class="detail-head">
+                <div><span>内置观察 · ASTERUSDT</span><h3>ASTER · Aster</h3></div>
+                <strong>风险 82/100</strong>
+              </div>
+              <div class="alpha-verdict danger">
+                <b>疑似派发</b>
+                <span>这是 Alpha 页面兜底数据。页面脚本加载后会自动接管为可搜索、可添加、可刷新的实时表格。</span>
+              </div>
+              <div class="alpha-chart">
+                <div class="chart-head"><b>ASTER K线</b><span>等待同步 Binance 1h K线</span></div>
+                <div class="chart-empty">点击刷新信号后同步行情；接口不可用时仍保留观察列表。</div>
+              </div>
+            </div>
           </div>
         </section>
 

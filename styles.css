@@ -703,6 +703,19 @@ button, input { font: inherit; }
   font-weight: 900;
 }
 
+.fallback-token {
+  display: grid;
+  gap: 4px;
+}
+
+.fallback-token b {
+  color: var(--text);
+}
+
+.fallback-token small {
+  color: var(--muted);
+}
+
 .mini-trend {
   width: 120px;
   height: 60px;
