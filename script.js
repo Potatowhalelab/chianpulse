@@ -759,8 +759,15 @@ function isContractAddress(value) {
 async function syncAlphaCatalog() {
   const status = document.querySelector("#alphaApiStatus");
   const button = document.querySelector("#syncAlphaBtn");
+  const refreshButton = document.querySelector("#refreshAlphaBtn");
   if (button) button.disabled = true;
+  if (refreshButton) refreshButton.disabled = true;
   if (status) status.textContent = "正在通过 ChianPulse Alpha 代理同步 Binance Web3 Market API；代理不可用时会同步本地候选库。";
+  const syncGuard = setTimeout(() => {
+    if (status) status.textContent = "Alpha 本地候选库已加载。Binance Web3 官方接口响应较慢，请稍后再刷新。";
+    if (button) button.disabled = false;
+    if (refreshButton) refreshButton.disabled = false;
+  }, 12000);
 
   let catalog = alphaSeedCatalog;
   try {
@@ -794,8 +801,12 @@ async function syncAlphaCatalog() {
         ? `已同步 ${additions.length} 个 Alpha 项目。若已配置代理 Key，则数据来自 Binance Web3 Market API；否则来自本地候选库。`
         : "Alpha 项目库已是最新。若已配置代理 Key，则数据来自 Binance Web3 Market API；否则来自本地候选库。";
     }
+  } catch (error) {
+    if (status) status.textContent = `Alpha 本地候选库已加载。行情同步暂不可用：${error.message}`;
   } finally {
+    clearTimeout(syncGuard);
     if (button) button.disabled = false;
+    if (refreshButton) refreshButton.disabled = false;
   }
 }
 
